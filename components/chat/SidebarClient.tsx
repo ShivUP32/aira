@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,17 +14,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { groupConversationsByDate, truncate } from '@/lib/utils';
-import { MODES } from '@/lib/llm/prompts';
+import { AiraLogo } from '@/components/brand/AiraLogo';
 import {
-  MessageSquare,
   Plus,
   LogOut,
-  User,
   Bookmark,
   Settings,
   ChevronLeft,
   ChevronRight,
   Trash2,
+  MessageSquare,
+  BookOpen,
+  PenLine,
+  RotateCcw,
+  GraduationCap,
+  FileText,
 } from 'lucide-react';
 import type { Mode } from '@/lib/llm/prompts';
 
@@ -51,12 +52,24 @@ interface SidebarClientProps {
   user: SidebarUser;
 }
 
-const modeEmoji: Record<string, string> = {
-  doubt: '💬',
-  learning: '📚',
-  practice: '✏️',
-  revision: '🔄',
+const SUBJECT_COLORS: Record<string, string> = {
+  physics: '#4C44B8',
+  chemistry: '#B23A48',
+  mathematics: '#DC8B3F',
+  'computer science': '#4F7A6E',
+  english: '#6B6680',
 };
+
+const modeConfig = [
+  { value: 'doubt' as Mode, label: 'Doubt Solver', icon: MessageSquare },
+  { value: 'learning' as Mode, label: 'Learning', icon: BookOpen },
+  { value: 'practice' as Mode, label: 'Practice', icon: PenLine },
+  { value: 'revision' as Mode, label: 'Revision', icon: RotateCcw },
+];
+
+function getSubjectColor(mode: string): string {
+  return SUBJECT_COLORS[mode] || 'var(--aira-indigo)';
+}
 
 export function SidebarClient({ conversations: initialConversations, user }: SidebarClientProps) {
   const router = useRouter();
@@ -76,229 +89,406 @@ export function SidebarClient({ conversations: initialConversations, user }: Sid
   async function handleDeleteConversation(id: string, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-
     const { error } = await supabase.from('conversations').delete().eq('id', id);
-
-    if (error) {
-      toast.error('Failed to delete conversation');
-      return;
-    }
-
+    if (error) { toast.error('Failed to delete conversation'); return; }
     setConversations((prev) => prev.filter((c) => c.id !== id));
-
-    if (pathname === `/chat/${id}`) {
-      router.push('/chat');
-    }
+    if (pathname === `/chat/${id}`) router.push('/chat');
   }
 
   function ConversationItem({ conv }: { conv: Conversation }) {
     const isActive = pathname === `/chat/${conv.id}`;
+    const dotColor = getSubjectColor(conv.mode);
 
     return (
       <Link
         href={`/chat/${conv.id}`}
-        className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
-          isActive
-            ? 'bg-[#534AB7] text-white'
-            : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
-        }`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 8px',
+          borderRadius: 8,
+          textDecoration: 'none',
+          background: isActive ? 'var(--aira-indigo-soft)' : 'transparent',
+          transition: 'background 0.1s',
+        }}
+        onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = 'var(--aira-line-faint)'; }}
+        onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; }}
+        className="group"
       >
-        <span className="text-xs flex-shrink-0">{modeEmoji[conv.mode] || '💬'}</span>
-        <span className="flex-1 truncate min-w-0">
-          {truncate(conv.title || 'New conversation', 30)}
+        <span style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: dotColor,
+          flexShrink: 0,
+        }} />
+        <span style={{
+          flex: 1,
+          fontSize: 13,
+          color: isActive ? 'var(--aira-indigo)' : 'var(--aira-ink-2)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+        }}>
+          {truncate(conv.title || 'New conversation', 28)}
         </span>
         <button
           onClick={(e) => handleDeleteConversation(conv.id, e)}
-          className={`flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity ${
-            isActive ? 'text-white/70 hover:text-white' : 'text-zinc-400 hover:text-red-500'
-          }`}
+          style={{
+            flexShrink: 0,
+            padding: 2,
+            borderRadius: 4,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'var(--aira-ink-4)',
+            opacity: 0,
+            transition: 'opacity 0.1s',
+          }}
+          className="group-hover:!opacity-100"
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 style={{ width: 12, height: 12 }} />
         </button>
+      </Link>
+    );
+  }
+
+  function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 10,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'var(--aira-ink-4)',
+        padding: '8px 8px 4px',
+      }}>
+        {children}
+      </div>
+    );
+  }
+
+  function NavItem({ href, icon: Icon, label, badge }: { href: string; icon: React.ElementType; label: string; badge?: number }) {
+    const isActive = pathname === href || pathname.startsWith(href + '/');
+    return (
+      <Link href={href} style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 8px',
+        borderRadius: 8,
+        textDecoration: 'none',
+        background: isActive ? 'var(--aira-indigo-soft)' : 'transparent',
+        color: isActive ? 'var(--aira-indigo)' : 'var(--aira-ink-2)',
+        fontSize: 13.5,
+        transition: 'background 0.1s',
+      }}
+      onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = 'var(--aira-line-faint)'; }}
+      onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; }}
+      >
+        <Icon style={{ width: 15, height: 15, flexShrink: 0 }} />
+        <span style={{ flex: 1 }}>{label}</span>
+        {badge !== undefined && (
+          <span style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 10,
+            background: 'var(--aira-paper-3)',
+            color: 'var(--aira-ink-4)',
+            borderRadius: 999,
+            padding: '1px 7px',
+          }}>
+            {badge}
+          </span>
+        )}
       </Link>
     );
   }
 
   if (collapsed) {
     return (
-      <div className="w-14 flex flex-col border-r border-zinc-200 bg-white h-full">
-        <div className="flex flex-col items-center gap-2 p-2 pt-4">
-          <div className="w-8 h-8 rounded-lg bg-[#534AB7] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
-          <button
-            onClick={() => setCollapsed(false)}
-            className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-col items-center gap-1 p-2 mt-2">
-          <Link href="/chat">
-            <button className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500" title="New Chat">
-              <Plus className="h-4 w-4" />
-            </button>
+      <div style={{
+        width: 52,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '1px solid var(--aira-line)',
+        background: 'var(--aira-paper-2)',
+        height: '100%',
+        flexShrink: 0,
+        alignItems: 'center',
+        padding: '12px 0',
+        gap: 8,
+      }}>
+        <AiraLogo size={26} />
+        <button
+          onClick={() => setCollapsed(false)}
+          style={{
+            padding: 8,
+            borderRadius: 8,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'var(--aira-ink-3)',
+          }}
+        >
+          <ChevronRight style={{ width: 16, height: 16 }} />
+        </button>
+        <div style={{ width: '100%', height: 1, background: 'var(--aira-line)', margin: '4px 0' }} />
+        {modeConfig.map(({ value, icon: Icon }) => (
+          <Link key={value} href={`/chat?mode=${value}`} style={{
+            padding: 8,
+            borderRadius: 8,
+            color: 'var(--aira-ink-3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Icon style={{ width: 16, height: 16 }} />
           </Link>
-          <Link href="/bookmarks">
-            <button className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500" title="Bookmarks">
-              <Bookmark className="h-4 w-4" />
-            </button>
-          </Link>
-        </div>
-
-        <div className="mt-auto flex flex-col items-center p-2 pb-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">{user.avatarInitial}</AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="end" className="w-48">
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="w-[260px] flex flex-col border-r border-zinc-200 bg-white h-full flex-shrink-0">
+    <div style={{
+      width: 260,
+      flexShrink: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      borderRight: '1px solid var(--aira-line)',
+      background: 'var(--aira-paper-2)',
+      height: '100%',
+    }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-100">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#534AB7] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
-          </div>
-          <span className="font-bold text-[#534AB7] text-lg">Aira</span>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 12px 14px 16px',
+        borderBottom: '1px solid var(--aira-line)',
+      }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <AiraLogo size={26} />
+          <span style={{ fontFamily: 'Newsreader, Georgia, serif', fontSize: 18, fontWeight: 600, color: 'var(--aira-ink)' }}>
+            Aira
+          </span>
+          <span style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 9,
+            color: 'var(--aira-ink-4)',
+            background: 'var(--aira-paper-3)',
+            padding: '1px 6px',
+            borderRadius: 999,
+            border: '1px solid var(--aira-line)',
+          }}>
+            v1.0
+          </span>
         </Link>
         <button
           onClick={() => setCollapsed(true)}
-          className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400"
+          style={{
+            padding: 6,
+            borderRadius: 6,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: 'var(--aira-ink-4)',
+          }}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft style={{ width: 15, height: 15 }} />
         </button>
       </div>
 
-      {/* New Chat */}
-      <div className="px-3 py-3">
-        <Link href="/chat">
-          <Button className="w-full gap-2" size="sm">
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
+      {/* New conversation */}
+      <div style={{ padding: '10px 10px 0' }}>
+        <Link href="/chat" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          padding: '8px 12px',
+          borderRadius: 10,
+          border: '1px solid var(--aira-line-strong)',
+          background: 'transparent',
+          textDecoration: 'none',
+          color: 'var(--aira-ink-2)',
+          fontSize: 13.5,
+          transition: 'background 0.1s, border-color 0.1s',
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLAnchorElement).style.background = 'var(--aira-paper)';
+          (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--aira-indigo)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
+          (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--aira-line-strong)';
+        }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Plus style={{ width: 15, height: 15 }} />
+            New conversation
+          </div>
+          <span style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 9,
+            color: 'var(--aira-ink-4)',
+            background: 'var(--aira-paper-3)',
+            padding: '2px 5px',
+            borderRadius: 4,
+          }}>
+            ⌘K
+          </span>
         </Link>
       </div>
 
-      {/* Mode quick links */}
-      <div className="px-3 pb-3 grid grid-cols-2 gap-1">
-        {MODES.map((m) => (
-          <Link
-            key={m.value}
-            href={`/chat?mode=${m.value}`}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-zinc-600 hover:bg-[#EEEDFB] hover:text-[#534AB7] transition-colors"
-          >
-            <span>{m.icon}</span>
-            <span>{m.label}</span>
-          </Link>
-        ))}
-      </div>
+      <ScrollArea style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ padding: '8px 10px' }}>
+          {/* MODES */}
+          <SectionLabel>Modes</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 8 }}>
+            {modeConfig.map(({ value, label, icon: Icon }) => (
+              <Link key={value} href={`/chat?mode=${value}`} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 8px',
+                borderRadius: 8,
+                textDecoration: 'none',
+                color: 'var(--aira-ink-2)',
+                fontSize: 13.5,
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'var(--aira-line-faint)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; }}
+              >
+                <Icon style={{ width: 14, height: 14, color: 'var(--aira-ink-3)', flexShrink: 0 }} />
+                {label}
+              </Link>
+            ))}
+          </div>
 
-      {/* Conversations */}
-      <ScrollArea className="flex-1 min-h-0 px-2">
-        {conversations.length === 0 ? (
-          <div className="px-2 py-8 text-center">
-            <MessageSquare className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
-            <p className="text-xs text-zinc-400">No conversations yet</p>
-            <p className="text-xs text-zinc-400">Start a new chat above</p>
+          {/* LIBRARY */}
+          <SectionLabel>Library</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 8 }}>
+            <NavItem href="/saved" icon={Bookmark} label="Bookmarks" badge={0} />
+            <NavItem href="/papers" icon={FileText} label="Past papers" />
           </div>
-        ) : (
-          <div className="py-1 space-y-3">
-            {grouped.today.length > 0 && (
-              <div>
-                <p className="px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                  Today
-                </p>
-                <div className="space-y-0.5">
-                  {grouped.today.map((conv) => (
-                    <ConversationItem key={conv.id} conv={conv} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {grouped.yesterday.length > 0 && (
-              <div>
-                <p className="px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                  Yesterday
-                </p>
-                <div className="space-y-0.5">
-                  {grouped.yesterday.map((conv) => (
-                    <ConversationItem key={conv.id} conv={conv} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {grouped.older.length > 0 && (
-              <div>
-                <p className="px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                  Older
-                </p>
-                <div className="space-y-0.5">
-                  {grouped.older.map((conv) => (
-                    <ConversationItem key={conv.id} conv={conv} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+
+          {/* Conversations */}
+          {conversations.length > 0 && (
+            <>
+              {grouped.today.length > 0 && (
+                <>
+                  <SectionLabel>Today</SectionLabel>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 4 }}>
+                    {grouped.today.map((conv) => <ConversationItem key={conv.id} conv={conv} />)}
+                  </div>
+                </>
+              )}
+              {grouped.yesterday.length > 0 && (
+                <>
+                  <SectionLabel>Yesterday</SectionLabel>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 4 }}>
+                    {grouped.yesterday.map((conv) => <ConversationItem key={conv.id} conv={conv} />)}
+                  </div>
+                </>
+              )}
+              {grouped.older.length > 0 && (
+                <>
+                  <SectionLabel>Last week</SectionLabel>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 4 }}>
+                    {grouped.older.map((conv) => <ConversationItem key={conv.id} conv={conv} />)}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {conversations.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--aira-ink-4)' }}>
+              <GraduationCap style={{ width: 28, height: 28, margin: '0 auto 8px', color: 'var(--aira-ink-4)' }} />
+              <p style={{ fontSize: 12 }}>No conversations yet</p>
+            </div>
+          )}
+        </div>
       </ScrollArea>
 
-      {/* Bottom nav */}
-      <div className="border-t border-zinc-100 p-3 space-y-0.5">
-        <Link
-          href="/bookmarks"
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
-        >
-          <Bookmark className="h-4 w-4" />
-          Bookmarks
-        </Link>
+      {/* Bottom */}
+      <div style={{
+        borderTop: '1px solid var(--aira-line)',
+        padding: '10px 10px 12px',
+      }}>
+        {/* Rate limit bar */}
+        <div style={{ marginBottom: 10, padding: '0 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--aira-ink-4)' }}>
+              Hourly limit
+            </span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--aira-ink-4)' }}>
+              18/30
+            </span>
+          </div>
+          <div style={{ height: 3, background: 'var(--aira-line-strong)', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '60%', background: 'var(--aira-indigo)', borderRadius: 999 }} />
+          </div>
+        </div>
 
+        {/* User row */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs text-white bg-[#534AB7]">
-                  {user.avatarInitial}
-                </AvatarFallback>
-              </Avatar>
-              <span className="flex-1 text-left truncate">{user.displayName}</span>
+            <button style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '7px 8px',
+              borderRadius: 10,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--aira-line-faint)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+            >
+              <div style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: 'var(--aira-indigo)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>{user.avatarInitial}</span>
+              </div>
+              <span style={{ flex: 1, textAlign: 'left', fontSize: 13.5, color: 'var(--aira-ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.displayName}
+              </span>
+              <Settings style={{ width: 14, height: 14, color: 'var(--aira-ink-4)', flexShrink: 0 }} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" className="w-52">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-medium">{user.displayName}</p>
-              <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+          <DropdownMenuContent side="top" align="start" style={{ width: 220 }}>
+            <div style={{ padding: '8px 12px 8px' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--aira-ink)' }}>{user.displayName}</p>
+              <p style={{ fontSize: 11, color: 'var(--aira-ink-4)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/onboarding" className="cursor-pointer">
-                <Settings className="h-4 w-4" />
+              <Link href="/onboarding" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Settings style={{ width: 14, height: 14 }} />
                 Preferences
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              style={{ color: 'var(--aira-crimson)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut style={{ width: 14, height: 14 }} />
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
