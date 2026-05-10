@@ -1,0 +1,292 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500&family=Tiro+Devanagari+Hindi&display=swap');
+
+:root {
+  /* Warm Studious Design System */
+  --aira-canvas: #FAF6EE;
+  --aira-paper: #FFFEFB;
+  --aira-paper-2: #F4EFE3;
+  --aira-paper-3: #EAE3D2;
+  --aira-ink: #1A1827;
+  --aira-ink-2: #3A3654;
+  --aira-ink-3: #6B6680;
+  --aira-ink-4: #9A9489;
+  --aira-indigo: #4C44B8;
+  --aira-indigo-deep: #2E2880;
+  --aira-indigo-soft: #E8E5F8;
+  --aira-indigo-tint: #F2F0FB;
+  --aira-saffron: #DC8B3F;
+  --aira-saffron-deep: #B26B22;
+  --aira-saffron-soft: #F8EAD4;
+  --aira-sage: #4F7A6E;
+  --aira-sage-soft: #E1ECE6;
+  --aira-crimson: #B23A48;
+  --aira-crimson-soft: #F4DDDF;
+  --aira-line: #E8E1D3;
+  --aira-line-strong: #D6CDB8;
+  --aira-line-faint: #F0EADB;
+
+  /* Legacy compat vars */
+  --background: var(--aira-canvas);
+  --foreground: var(--aira-ink);
+  --border: var(--aira-line);
+  --radius: 0.5rem;
+  --sidebar-width: 260px;
+}
+
+/* Shadows */
+.shadow-aira-sm {
+  box-shadow: 0 1px 0 rgba(46,40,128,0.04), 0 1px 2px rgba(26,24,39,0.04);
+}
+.shadow-aira-md {
+  box-shadow: 0 1px 0 rgba(46,40,128,0.04), 0 4px 16px rgba(26,24,39,0.06);
+}
+.shadow-aira-lg {
+  box-shadow: 0 1px 0 rgba(46,40,128,0.06), 0 12px 40px rgba(26,24,39,0.10);
+}
+
+@theme inline {
+  --color-background: var(--aira-canvas);
+  --color-foreground: var(--aira-ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: 'Newsreader', Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--aira-canvas);
+  color: var(--aira-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Font utilities */
+.font-serif {
+  font-family: 'Newsreader', Georgia, serif;
+}
+.font-mono-aira {
+  font-family: 'JetBrains Mono', monospace;
+}
+.font-devanagari {
+  font-family: 'Tiro Devanagari Hindi', serif;
+}
+
+/* Typography scale */
+.text-h1-landing {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 76px;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+.text-h1-mobile {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 40px;
+  letter-spacing: -0.03em;
+}
+.text-h2-practice {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 24px;
+  letter-spacing: -0.018em;
+}
+.text-chat-h4 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 16px;
+  font-weight: 500;
+}
+.text-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.text-citation {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+/* Jali decorative pattern */
+.aira-jali {
+  background-image: radial-gradient(circle, #D6CDB8 1px, transparent 1.2px);
+  background-size: 10px 10px;
+}
+
+/* Animations */
+@keyframes aira-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+@keyframes aira-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.aira-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1em;
+  background: var(--aira-indigo);
+  animation: aira-blink 1s step-start infinite;
+  vertical-align: text-bottom;
+}
+
+.aira-loading-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--aira-saffron);
+  animation: aira-pulse 1.4s ease-in-out infinite;
+}
+
+.animate-fade-in { animation: fadeIn 0.2s ease-in-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--aira-paper-2) 25%,
+    rgba(76,68,184,0.08) 50%,
+    var(--aira-paper-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* KaTeX overrides */
+.katex { font-size: 1em; }
+.katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Markdown / prose content */
+.prose-aira {
+  color: var(--aira-ink);
+  line-height: 1.75;
+}
+.prose-aira h1,
+.prose-aira h2,
+.prose-aira h3,
+.prose-aira h4 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--aira-ink);
+}
+.prose-aira h1 { font-size: 1.5em; }
+.prose-aira h2 { font-size: 1.25em; }
+.prose-aira h3 { font-size: 1.1em; }
+.prose-aira h4 { font-size: 1em; font-weight: 500; }
+
+.prose-aira p { margin-bottom: 0.75em; }
+
+.prose-aira ul,
+.prose-aira ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+.prose-aira li { margin-bottom: 0.25em; }
+
+.prose-aira code:not(pre code) {
+  background: var(--aira-indigo-tint);
+  color: var(--aira-indigo);
+  padding: 0.1em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.prose-aira pre {
+  background: var(--aira-paper-3);
+  color: var(--aira-ink);
+  border: 1px solid var(--aira-line);
+  padding: 1em;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.prose-aira pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+.prose-aira blockquote {
+  border-left: 4px solid var(--aira-indigo-soft);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--aira-ink-3);
+  font-style: italic;
+  font-family: 'Newsreader', Georgia, serif;
+}
+
+.prose-aira table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75em;
+}
+.prose-aira th,
+.prose-aira td {
+  border: 1px solid var(--aira-line);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.prose-aira th {
+  background: var(--aira-paper-2);
+  font-weight: 600;
+}
+
+.prose-aira a {
+  color: var(--aira-indigo);
+  text-decoration: underline;
+}
+.prose-aira strong { font-weight: 600; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--aira-line-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aira-ink-4);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--aira-indigo);
+  outline-offset: 2px;
+}
