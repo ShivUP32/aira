@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   try {
     const pathname = request.nextUrl.pathname;
 
@@ -19,8 +19,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Derive session cookie name from the Supabase project URL.
-    // @supabase/ssr names it: sb-<project-ref>-auth-token
+    // @supabase/ssr names browser auth cookies: sb-<project-ref>-auth-token
     let hasSession = false;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (supabaseUrl) {
@@ -28,7 +27,7 @@ export function middleware(request: NextRequest) {
         const projectRef = new URL(supabaseUrl).hostname.split('.')[0];
         hasSession = request.cookies.has(`sb-${projectRef}-auth-token`);
       } catch {
-        // malformed URL — treat as no session
+        // Treat a malformed env var as no active browser session.
       }
     }
 
@@ -43,14 +42,21 @@ export function middleware(request: NextRequest) {
     }
 
     return NextResponse.next();
-  } catch (e) {
-    console.error('Middleware error:', e);
+  } catch (error) {
+    console.error('Proxy error:', error);
     return NextResponse.next();
   }
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/app/:path*',
+    '/chat/:path*',
+    '/onboarding/:path*',
+    '/bookmarks/:path*',
+    '/practice/:path*',
+    '/revision/:path*',
+    '/login',
+    '/signup',
   ],
 };
