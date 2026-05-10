@@ -24,14 +24,13 @@ export interface RetrieveOptions {
   limit?: number;
 }
 
-// Use service role for RAG to bypass RLS on documents
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function retrieve(options: RetrieveOptions): Promise<RetrievedDocument[]> {
   const { query, filter = {}, limit = 5 } = options;
+
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   const embedding = await embedQuery(query);
 
