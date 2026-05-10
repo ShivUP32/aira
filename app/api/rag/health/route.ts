@@ -26,13 +26,13 @@ export async function GET() {
       .not('metadata->>language', 'is', null);
 
     const subjectCounts = (bySubject || []).reduce<Record<string, number>>((acc, row) => {
-      const s = (row as { subject: string }).subject;
+      const s = (row as unknown as { subject: string }).subject;
       acc[s] = (acc[s] || 0) + 1;
       return acc;
     }, {});
 
     const languageCounts = (byLanguage || []).reduce<Record<string, number>>((acc, row) => {
-      const l = (row as { language: string }).language;
+      const l = (row as unknown as { language: string }).language;
       acc[l] = (acc[l] || 0) + 1;
       return acc;
     }, {});

@@ -1,0 +1,8 @@
+marker-pdf>=0.2.0
+pymupdf>=1.24.0
+sentence-transformers>=3.0.0
+supabase>=2.5.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+openai>=1.40.0
+requests>=2.31.0

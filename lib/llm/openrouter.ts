@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, type CoreMessage } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 
 export const openrouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -27,15 +27,15 @@ const MODEL_LIST: string[] = [
 ];
 
 export interface StreamOptions {
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   system: string;
-  maxTokens?: number;
+  maxOutputTokens?: number;
   temperature?: number;
-  onFinish?: (result: { text: string; usage?: { promptTokens: number; completionTokens: number } }) => void;
+  onFinish?: (result: { text: string; usage?: { inputTokens?: number; outputTokens?: number } }) => void;
 }
 
 export async function streamWithFallback(options: StreamOptions) {
-  const { messages, system, maxTokens = 2048, temperature = 0.7, onFinish } = options;
+  const { messages, system, maxOutputTokens = 2048, temperature = 0.7, onFinish } = options;
 
   let lastError: Error | null = null;
 
@@ -45,9 +45,11 @@ export async function streamWithFallback(options: StreamOptions) {
         model: openrouter(modelId),
         system,
         messages,
-        maxTokens,
+        maxOutputTokens,
         temperature,
-        onFinish,
+        onFinish: onFinish
+          ? (event) => onFinish({ text: event.text, usage: { inputTokens: event.usage.inputTokens, outputTokens: event.usage.outputTokens } })
+          : undefined,
       });
 
       return result;

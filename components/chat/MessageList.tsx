@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Message } from './Message';
+import { AiraLogo } from '@/components/brand/AiraLogo';
 import type { Citation } from './CitationChip';
 import type { UIMessage } from 'ai';
 
@@ -15,6 +16,13 @@ interface MessageListProps {
   streamingMessageId?: string;
 }
 
+const STARTER_SUGGESTIONS = [
+  "Explain Newton's laws of motion",
+  'Solve this integral: ∫x²dx',
+  'Practice: 5-mark electrochemistry Q',
+  'Revise organic chemistry chapter 12',
+];
+
 export function MessageList({ messages, isLoading = false, streamingMessageId }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -26,24 +34,64 @@ export function MessageList({ messages, isLoading = false, streamingMessageId }:
 
   if (visibleMessages.length === 0 && !isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-12">
-        <div className="w-16 h-16 rounded-2xl bg-[#EEEDFB] flex items-center justify-center mb-4">
-          <span className="text-3xl">🎓</span>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '48px 24px',
+      }}>
+        <div style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          background: 'var(--aira-indigo-tint)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 20,
+          border: '1px solid var(--aira-indigo-soft)',
+        }}>
+          <AiraLogo size={34} />
         </div>
-        <h3 className="text-lg font-semibold text-zinc-800 mb-2">Ask Aira anything!</h3>
-        <p className="text-sm text-zinc-500 max-w-sm">
-          I can help you solve doubts, learn concepts, practice questions, or revise topics from your CBSE curriculum.
+        <h3 style={{
+          fontFamily: 'Newsreader, Georgia, serif',
+          fontSize: 24,
+          fontWeight: 400,
+          color: 'var(--aira-ink)',
+          marginBottom: 8,
+        }}>
+          Ask Aira anything
+        </h3>
+        <p style={{ fontSize: 14, color: 'var(--aira-ink-3)', maxWidth: 380, lineHeight: 1.6, marginBottom: 28 }}>
+          I cite every answer from real CBSE board papers — so you know exactly what earns marks.
         </p>
-        <div className="mt-6 grid grid-cols-2 gap-2 max-w-sm w-full">
-          {[
-            'Explain Newton\'s laws of motion',
-            'Solve this integral: ∫x²dx',
-            'What is photosynthesis?',
-            'Give me practice questions on electrochemistry',
-          ].map((suggestion) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 440, width: '100%' }}>
+          {STARTER_SUGGESTIONS.map((suggestion) => (
             <button
               key={suggestion}
-              className="text-left px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs text-zinc-600 hover:border-[#534AB7] hover:text-[#534AB7] hover:bg-[#EEEDFB] transition-colors"
+              style={{
+                textAlign: 'left',
+                padding: '10px 14px',
+                background: 'var(--aira-paper)',
+                border: '1px solid var(--aira-line)',
+                borderRadius: 12,
+                fontSize: 13,
+                color: 'var(--aira-ink-2)',
+                cursor: 'pointer',
+                lineHeight: 1.4,
+                transition: 'border-color 0.1s, color 0.1s',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--aira-indigo)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--aira-indigo)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--aira-line)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--aira-ink-2)';
+              }}
             >
               {suggestion}
             </button>
@@ -54,28 +102,54 @@ export function MessageList({ messages, isLoading = false, streamingMessageId }:
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {visibleMessages.map((message) => (
-          <Message
-            key={message.id}
-            role={message.role as 'user' | 'assistant'}
-            content={message.content}
-            citations={message.citations}
-            isStreaming={streamingMessageId === message.id}
-          />
-        ))}
+    <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {visibleMessages.map((message) => {
+          const text = message.parts
+            .filter((p) => p.type === 'text')
+            .map((p) => (p as { type: 'text'; text: string }).text)
+            .join('');
+          return (
+            <Message
+              key={message.id}
+              role={message.role as 'user' | 'assistant'}
+              content={text}
+              citations={message.citations}
+              isStreaming={streamingMessageId === message.id}
+            />
+          );
+        })}
 
         {isLoading && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-lg bg-[#534AB7] flex items-center justify-center shadow-sm flex-shrink-0">
-              <span className="text-white text-xs font-bold">A</span>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: 'var(--aira-indigo-tint)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              border: '1px solid var(--aira-indigo-soft)',
+            }}>
+              <AiraLogo size={20} />
             </div>
-            <div className="bg-white border border-zinc-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#534AB7] animate-bounce [animation-delay:0ms]" />
-                <span className="w-2 h-2 rounded-full bg-[#534AB7] animate-bounce [animation-delay:150ms]" />
-                <span className="w-2 h-2 rounded-full bg-[#534AB7] animate-bounce [animation-delay:300ms]" />
+            <div style={{ paddingTop: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="aira-loading-dot" style={{ animationDelay: '0ms' }} />
+                <span className="aira-loading-dot" style={{ animationDelay: '200ms', opacity: 0.7 }} />
+                <span className="aira-loading-dot" style={{ animationDelay: '400ms', opacity: 0.4 }} />
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--aira-ink-4)',
+                  marginLeft: 4,
+                }}>
+                  Searching past papers…
+                </span>
               </div>
             </div>
           </div>

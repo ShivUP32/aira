@@ -1,0 +1,27 @@
+{
+  "name": "Aira — Your Board Exam Buddy",
+  "short_name": "Aira",
+  "description": "The Class 12 board exam buddy that gets you extra marks. AI-powered doubt solver grounded in real CBSE 2025 papers.",
+  "start_url": "/chat",
+  "display": "standalone",
+  "background_color": "#FAF6EE",
+  "theme_color": "#4C44B8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education"],
+  "screenshots": [],
+  "lang": "en-IN"
+}

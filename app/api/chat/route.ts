@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages, type UIMessage } from 'ai';
 import { openrouter, MODELS } from '@/lib/llm/openrouter';
 import { getSystemPrompt } from '@/lib/llm/prompts';
 import { retrieve, formatContextBlock } from '@/lib/rag/retrieve';
 import { checkRateLimit } from '@/lib/ratelimit';
 import type { Mode } from '@/lib/llm/prompts';
-import type { CoreMessage } from 'ai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -61,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { messages, mode = 'doubt', conversationId } = body as {
-      messages: CoreMessage[];
+      messages: UIMessage[];
       mode: Mode;
       conversationId?: string;
     };
@@ -70,11 +69,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
     }
 
-    // Get the last user message for RAG
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
-    const userQuery = typeof lastUserMessage?.content === 'string'
-      ? lastUserMessage.content
-      : '';
+    // Extract text from the last user message
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+    const userQuery = lastUserMsg?.parts
+      .filter((p) => p.type === 'text')
+      .map((p) => (p as { type: 'text'; text: string }).text)
+      .join(' ')
+      .trim() ?? '';
 
     // Retrieve context for doubt and practice modes
     let contextBlock = '';
@@ -82,25 +83,19 @@ export async function POST(request: NextRequest) {
 
     if (['doubt', 'practice', 'revision'].includes(mode) && userQuery) {
       try {
-        retrievedDocs = await retrieve({
-          query: userQuery,
-          limit: 5,
-        });
+        retrievedDocs = await retrieve({ query: userQuery, limit: 5 });
         contextBlock = formatContextBlock(retrievedDocs);
       } catch (e) {
         console.error('RAG retrieval error:', e);
-        // Continue without context
       }
     }
 
-    // Build system prompt
     const systemPrompt = getSystemPrompt(mode, contextBlock);
 
     // Get or create conversation
     let activeConvId = conversationId;
 
     if (!activeConvId) {
-      // Create new conversation
       const title = userQuery.slice(0, 60) || 'New conversation';
       const { data: newConv, error: convError } = await supabase
         .from('conversations')
@@ -122,8 +117,6 @@ export async function POST(request: NextRequest) {
         role: 'user',
         content: userQuery,
       });
-
-      // Update conversation timestamp
       await supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
@@ -137,12 +130,14 @@ export async function POST(request: NextRequest) {
       similarity: doc.similarity,
     }));
 
-    // Stream response
+    // Convert UIMessages to ModelMessages for streamText
+    const modelMessages = await convertToModelMessages(messages);
+
     const result = streamText({
       model: openrouter(MODELS.primary),
       system: systemPrompt,
-      messages,
-      maxTokens: 2048,
+      messages: modelMessages,
+      maxOutputTokens: 2048,
       temperature: 0.7,
       onFinish: async ({ text, usage }) => {
         if (activeConvId) {
@@ -151,14 +146,14 @@ export async function POST(request: NextRequest) {
             role: 'assistant',
             content: text,
             citations: citations,
-            tokens_used: (usage?.promptTokens || 0) + (usage?.completionTokens || 0),
+            tokens_used: (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0),
             model_used: MODELS.primary,
           });
         }
       },
     });
 
-    const response = result.toDataStreamResponse();
+    const response = result.toUIMessageStreamResponse();
 
     if (activeConvId) {
       const headers = new Headers(response.headers);
