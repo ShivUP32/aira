@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 import { SidebarClient } from '@/components/chat/SidebarClient';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
