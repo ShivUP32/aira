@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aira
 
-## Getting Started
+Aira is a Class 12 CBSE study companion built around four modes:
 
-First, run the development server:
+- Doubt Solver
+- Learning
+- Practice
+- Revision
+- Saved answers with local-first sync semantics
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+This fresh-start build is intentionally UI-first and static-safe. It keeps the
+production shell renderable without Supabase, OpenRouter, Upstash, or middleware
+while the product contract and visual system are rebuilt from the markdown specs.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Current Routes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `/` public landing page
+- `/login` Google one-tap style auth screen
+- `/onboarding` subject + language setup
+- `/chat` interactive study shell
+- `/practice` practice mode
+- `/revision` revision mode
+- `/learning` learning mode
+- `/saved` local-first saved list demo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Design System
 
-## Learn More
+The UI follows the attached "Warm Studious" references:
 
-To learn more about Next.js, take a look at the following resources:
+- Cream canvas `#FAF6EE`
+- Paper panels `#FFFEFB`
+- Ink `#1A1827`
+- Indigo primary action `#4C44B8`
+- Saffron citation/sync accents `#DC8B3F`
+- Newsreader for academic/editorial text
+- Geist for UI
+- JetBrains Mono for metadata and source chips
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Next Integration Steps
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Reconnect GitHub and Vercel to the new clean repository.
+2. Add environment variables from `.env.example`.
+3. Wire `/api/chat` to OpenRouter streaming.
+4. Wire `/api/rag/retrieve` to Supabase pgvector.
+5. Replace demo saved data with `/api/saved` delta sync.
+6. Add Supabase Google OAuth after UI verification.

@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { LoginScreen } from "@/components/aira/AuthScreens";
 
-// Auth is Google-only — redirect signup to login
-export default function SignupPage() {
-  redirect('/login');
+export default function Page() {
+  return <LoginScreen />;
 }
