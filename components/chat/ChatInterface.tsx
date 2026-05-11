@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/refs */
 
 import { useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -55,7 +56,7 @@ export function ChatInterface({
   const searchParams = useSearchParams();
   const modeFromUrl = (searchParams.get('mode') as Mode) || initialMode || 'doubt';
   const [mode, setMode] = useState<Mode>(modeFromUrl);
-  const [convId, setConvId] = useState<string | undefined>(conversationId);
+  const [convId] = useState<string | undefined>(conversationId);
   const [pinnedCitation, setPinnedCitation] = useState<Citation | null>(null);
   const [input, setInput] = useState('');
 

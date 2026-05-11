@@ -1,12 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
 import { Toaster } from "sonner";
+import { PwaRegister } from "@/components/aira/PwaRegister";
+import { ViewportClass } from "@/components/aira/ViewportClass";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -46,7 +42,16 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icons/aira-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/aira-icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Aira",
+    statusBarStyle: "default",
   },
 };
 
@@ -64,21 +69,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} h-full`}
+      className="h-full"
     >
-      <head>
-        {/* Google Fonts: Newsreader, JetBrains Mono, Tiro Devanagari Hindi */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500&family=Tiro+Devanagari+Hindi&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body
         className="min-h-full flex flex-col antialiased"
         style={{ background: "var(--aira-canvas)", color: "var(--aira-ink)" }}
       >
+        <PwaRegister />
+        <ViewportClass />
         {children}
         <Toaster
           position="top-right"

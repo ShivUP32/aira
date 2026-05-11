@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { hasRagEnv } from '@/lib/aira/env';
 import { embedQuery } from './embed';
 
 export interface RetrievedDocument {
@@ -9,6 +10,8 @@ export interface RetrievedDocument {
     chapter?: string;
     language?: string;
     set?: string;
+    set_label?: string;
+    q_no?: number | string;
     question_number?: number | string;
     marks?: number;
     year?: number | string;
@@ -26,6 +29,7 @@ export interface RetrieveOptions {
 
 export async function retrieve(options: RetrieveOptions): Promise<RetrievedDocument[]> {
   const { query, filter = {}, limit = 5 } = options;
+  if (!query.trim() || !hasRagEnv()) return [];
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,7 +62,7 @@ export function formatContextBlock(docs: RetrievedDocument[]): string {
         meta.year && `CBSE ${meta.year}`,
         meta.subject && meta.subject.charAt(0).toUpperCase() + meta.subject.slice(1),
         meta.set && `Set-${meta.set}`,
-        meta.question_number && `Q${meta.question_number}`,
+        (meta.q_no || meta.question_number) && `Q${meta.q_no || meta.question_number}`,
         meta.marks && `(${meta.marks} marks)`,
       ]
         .filter(Boolean)

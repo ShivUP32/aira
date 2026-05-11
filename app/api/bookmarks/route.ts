@@ -1,8 +1,60 @@
+import {
+  cleanString,
+  getAuthedSupabase,
+  isUuid,
+  jsonOk,
+  numericDocumentId,
+  readBody,
+} from "@/lib/aira/api";
+
 export async function GET() {
-  return Response.json({ bookmarks: [] });
+  try {
+    const { supabase, user } = await getAuthedSupabase();
+    if (supabase && user) {
+      const { data, error } = await supabase
+        .from("bookmarks")
+        .select("id,document_id,message_id,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (!error) return jsonOk({ bookmarks: data || [], source: "supabase" });
+    }
+  } catch (error) {
+    console.error("Bookmark fetch failed", error);
+  }
+
+  return jsonOk({ bookmarks: [], source: "local" });
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
-  return Response.json({ bookmark: body }, { status: 201 });
+  const body = await readBody(request);
+  const documentId = numericDocumentId(body.document_id);
+  const messageId = isUuid(body.message_id) ? String(body.message_id) : null;
+  const fallback = {
+    id: cleanString(body.id) || `local-${Date.now()}`,
+    ...body,
+    synced: false,
+    created_at: new Date().toISOString(),
+  };
+
+  if (documentId || messageId) {
+    try {
+      const { supabase, user } = await getAuthedSupabase();
+      if (supabase && user) {
+        const { data, error } = await supabase
+          .from("bookmarks")
+          .insert({
+            user_id: user.id,
+            document_id: documentId,
+            message_id: messageId,
+          })
+          .select()
+          .single();
+        if (!error && data) return jsonOk({ bookmark: data, source: "supabase" }, { status: 201 });
+      }
+    } catch (error) {
+      console.error("Bookmark create failed", error);
+    }
+  }
+
+  return jsonOk({ bookmark: fallback, source: "local" }, { status: 201 });
 }

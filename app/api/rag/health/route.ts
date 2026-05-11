@@ -1,7 +1,16 @@
+import { hasRagEnv, hasSupabaseServiceEnv } from "@/lib/aira/env";
+import { jsonOk } from "@/lib/aira/api";
+
 export async function GET() {
-  return Response.json({
-    status: "demo",
+  const ready = hasRagEnv();
+  return jsonOk({
+    status: ready ? "ready" : "fallback",
+    supabase: hasSupabaseServiceEnv(),
+    embeddings: Boolean(process.env.HF_API_TOKEN),
     documents: 0,
-    message: "RAG pipeline contract is present; Supabase upload comes next.",
+    source: ready ? "supabase" : "seed",
+    message: ready
+      ? "RAG environment is configured; retrieval will use Supabase pgvector."
+      : "RAG environment is incomplete; retrieval will fall back to seeded local docs.",
   });
 }

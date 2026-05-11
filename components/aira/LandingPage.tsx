@@ -1,132 +1,156 @@
 import Link from "next/link";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight, Bookmark, CheckCircle2, Search, Send } from "lucide-react";
 import { AiraMark } from "@/components/aira/AiraMark";
 import { Chip } from "@/components/aira/Chip";
-import { PhoneFrame } from "@/components/aira/PhoneFrame";
+import { InstallButton } from "@/components/aira/InstallButton";
 import { modeHighlights, modes, subjects } from "@/lib/aira/content";
 
 export function LandingPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[var(--aira-canvas)]">
-      <section className="hero-grid">
-        <nav className="landing-nav">
-          <Link href="/" className="brand-lockup">
-            <AiraMark size={30} />
-            <span>Aira</span>
-          </Link>
-          <div className="nav-actions">
-            <Link href="/saved">Saved</Link>
-            <Link href="/chat">Try app</Link>
-            <Link href="/login" className="small-button">
-              Log in
-            </Link>
-          </div>
-        </nav>
+    <main className="site-shell">
+      <nav className="landing-nav">
+        <Link href="/" className="brand-lockup">
+          <AiraMark size={30} />
+          <span>Aira</span>
+        </Link>
+        <div className="nav-actions">
+          <a href="#modes">Modes</a>
+          <a href="#sources">Sources</a>
+          <Link href="/saved">Saved</Link>
+          <Link href="/chat">Try app</Link>
+          <Link href="/login" className="small-button">Log in</Link>
+        </div>
+      </nav>
 
+      <section className="web-hero">
         <div className="hero-copy">
-          <Chip tone="saffron">Built on the 2025 CBSE Board papers</Chip>
+          <Chip tone="saffron">Built on 2025 CBSE board papers</Chip>
           <h1>
-            The Class 12 board exam buddy that gets you{" "}
-            <em>extra marks.</em>
+            Board-exam answers that show <em>where the marks come from.</em>
           </h1>
           <p>
-            Doubts answered with citations to the real paper. Practice scored
-            against the real marking scheme. Free, forever.
+            Aira helps Class 12 students solve doubts, practise questions,
+            revise chapters, and learn concepts with visible source citations.
           </p>
           <div className="hero-actions">
             <Link href="/login" className="primary-button">
-              Continue with Google <ArrowRight size={18} />
+              Start free <ArrowRight size={18} />
             </Link>
             <Link href="/chat" className="secondary-button">
-              Open demo
+              Explore demo
             </Link>
+            <InstallButton />
           </div>
-          <div className="hero-subtext">One-tap sign-in · No card · हिन्दी + English</div>
+          <div className="hero-subtext">No card · English + हिन्दी · Works as a PWA</div>
         </div>
 
-        <div className="hero-phone-wrap">
-          <PhoneFrame>
-            <div className="mobile-landing-preview">
-              <div className="mobile-top-row">
-                <div className="brand-lockup small">
-                  <AiraMark size={25} />
-                  <span>Aira</span>
-                </div>
-                <Link href="/login" className="tiny-pill">
-                  Log in
-                </Link>
-              </div>
-              <Chip tone="saffron">Built on the 2025 CBSE Board papers</Chip>
-              <h2>
-                The Class 12 board exam buddy that gets you <em>extra marks.</em>
-              </h2>
-              <p>Doubts answered with citations to the real paper. Practice scored against the real marking scheme.</p>
-              <Link href="/login" className="primary-button full">
-                Continue with Google
-              </Link>
-              <div className="section-kicker">Four modes</div>
-              {modes.map((mode) => {
+        <div className="web-app-preview" aria-label="Aira app preview">
+          <div className="preview-topbar">
+            <div className="brand-lockup small">
+              <AiraMark size={24} />
+              <span>Aira</span>
+            </div>
+            <div className="preview-search">
+              <Search size={16} />
+              Ask about Physics, Math, Chemistry...
+            </div>
+            <Link href="/chat" className="tiny-pill">Open app</Link>
+          </div>
+          <div className="preview-grid">
+            <aside className="preview-sidebar">
+              <div className="section-kicker">Modes</div>
+              {modes.map((mode, index) => {
                 const Icon = mode.icon;
                 return (
-                  <Link href="/chat" className="mode-row" key={mode.id}>
-                    <span className="mode-icon"><Icon size={17} /></span>
-                    <span>
-                      <strong>{mode.label}</strong>
-                      <small>{mode.description}</small>
-                    </span>
-                    <ChevronRight size={17} />
-                  </Link>
-                );
-              })}
-            </div>
-          </PhoneFrame>
-        </div>
-      </section>
-
-      <section className="foundation-panel" id="design">
-        <div>
-          <AiraMark size={38} />
-          <h2>Aira <em>Warm Studious</em></h2>
-          <p>
-            Editorial serif for explanations, quiet UI chrome for repeated
-            study, saffron confidence markers, and indigo as the single action
-            color.
-          </p>
-        </div>
-        <div className="foundation-grid">
-          <div>
-            <div className="section-kicker">Modes</div>
-            <div className="chip-row">
-              {modes.map((mode, index) => (
-                <Chip key={mode.id} active={index === 0}>{mode.short}</Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="section-kicker">Subjects</div>
-            <div className="chip-row">
-              {subjects.map((subject) => (
-                <Chip key={subject.id}>
-                  <span style={{ color: subject.color }}>■</span> {subject.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="section-kicker">What ships first</div>
-            <div className="feature-grid">
-              {modeHighlights.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div className="feature-card" key={item.title}>
-                    <Icon size={18} />
-                    <strong>{item.title}</strong>
-                    <span>{item.text}</span>
+                  <div className={`preview-nav-item ${index === 0 ? "active" : ""}`} key={mode.id}>
+                    <Icon size={16} />
+                    <span>{mode.label}</span>
                   </div>
                 );
               })}
-            </div>
+              <div className="section-kicker">Subjects</div>
+              {subjects.slice(0, 4).map((subject) => (
+                <div className="preview-nav-item" key={subject.id}>
+                  <span style={{ color: subject.color }}>■</span>
+                  <span>{subject.label}</span>
+                </div>
+              ))}
+            </aside>
+            <section className="preview-chat">
+              <div className="message user">Why does a copper ring slow down in a magnetic field?</div>
+              <article className="preview-answer">
+                <div className="answer-head">
+                  <AiraMark size={24} />
+                  <strong>Answer in marking-scheme points</strong>
+                </div>
+                <p>
+                  The changing magnetic flux induces a current. By Lenz&apos;s
+                  law, that current opposes the change, so the magnetic force
+                  acts opposite to the ring&apos;s motion.
+                </p>
+                <div className="formula-box">epsilon = -dPhi/dt ⇒ F = BIL</div>
+                <div className="chip-row">
+                  <Chip tone="source">CBSE 2025 Physics · Set-1 · Q12 · 5m</Chip>
+                  <Chip tone="success"><CheckCircle2 size={14} /> Marking scheme</Chip>
+                </div>
+              </article>
+              <Link href="/chat" className="preview-input">
+                <span>Ask a doubt or paste a board question...</span>
+                <span className="preview-send"><Send size={16} /></span>
+              </Link>
+            </section>
           </div>
+        </div>
+      </section>
+
+      <section className="website-section" id="modes">
+        <div className="section-heading">
+          <div className="section-kicker">Study modes</div>
+          <h2>One product, four ways to study.</h2>
+          <p>Each mode changes the workspace instead of forcing every task into a chat bubble.</p>
+        </div>
+        <div className="feature-grid large">
+          {modeHighlights.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link href="/chat" className="feature-card" key={item.title}>
+                <Icon size={20} />
+                <strong>{item.title}</strong>
+                <span>{item.text}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="website-section split" id="sources">
+        <div className="section-heading">
+          <div className="section-kicker">Citations</div>
+          <h2>Answers stay attached to the paper.</h2>
+          <p>
+            Source chips open the original question, solution source, marks,
+            and marking-scheme breakdown, so students can see what to write.
+          </p>
+          <div className="chip-row">
+            <Chip tone="source">CBSE 2025 Physics · Set-1 · Q12 · 5m</Chip>
+            <Chip tone="success">Official marking scheme</Chip>
+          </div>
+        </div>
+        <div className="source-card">
+          <div className="section-kicker">Marking scheme · 5 marks</div>
+          <div className="scheme-row"><span>01</span><div><strong>State Lenz&apos;s law</strong><p>Induced current opposes the change in flux producing it.</p></div></div>
+          <div className="scheme-row"><span>02</span><div><strong>Direction analysis</strong><p>On entry it opposes the external field; on exit it aids it.</p></div></div>
+          <div className="scheme-row"><span>03</span><div><strong>Derivation</strong><p>Phi = BA, so epsilon = -dPhi/dt = -BLv.</p></div></div>
+        </div>
+      </section>
+
+      <section className="website-section cta-section">
+        <Bookmark size={24} />
+        <h2>Start studying with sources attached.</h2>
+        <p>Aira is built for Supabase auth, OpenRouter answers, RAG retrieval, and local-first saved answers.</p>
+        <div className="hero-actions">
+          <Link href="/chat" className="primary-button">Open Aira</Link>
+          <Link href="/onboarding" className="secondary-button">Set up subjects</Link>
         </div>
       </section>
     </main>

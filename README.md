@@ -23,9 +23,15 @@ while the product contract and visual system are rebuilt from the markdown specs
 - `/learning` learning mode
 - `/saved` local-first saved list demo
 
+## PWA
+
+The app includes a manifest, SVG app icons, install shortcuts, and a small
+service worker for shell caching. The install button appears on the website and
+inside the app shell when the browser exposes the install prompt.
+
 ## Design System
 
-The UI follows the attached "Warm Studious" references:
+The UI follows the attached reference screens:
 
 - Cream canvas `#FAF6EE`
 - Paper panels `#FFFEFB`

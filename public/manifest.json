@@ -3,25 +3,48 @@
   "short_name": "Aira",
   "description": "The Class 12 board exam buddy that gets you extra marks. AI-powered doubt solver grounded in real CBSE 2025 papers.",
   "start_url": "/chat",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#FAF6EE",
   "theme_color": "#4C44B8",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "/icons/aira-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/icons/aira-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
   "categories": ["education"],
-  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Ask a doubt",
+      "short_name": "Doubt",
+      "url": "/chat",
+      "icons": [{ "src": "/icons/aira-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Saved answers",
+      "short_name": "Saved",
+      "url": "/saved",
+      "icons": [{ "src": "/icons/aira-icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/aira-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
   "lang": "en-IN"
 }
