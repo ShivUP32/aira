@@ -187,7 +187,7 @@ function CitationDialog({
                 fontSize: 10,
                 color: 'var(--aira-ink-3)',
               }}>
-                {meta.language === 'en' ? 'English' : 'Hindi'}
+                English
               </span>
             )}
           </div>

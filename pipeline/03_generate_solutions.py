@@ -13,6 +13,7 @@ import time
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 from tqdm import tqdm
 from openai import OpenAI
 
@@ -65,7 +66,7 @@ def generate_solution(q: dict, dry_run: bool = False) -> str:
     return response.choices[0].message.content or ""
 
 
-def main(subject_filter: str | None = None, dry_run: bool = False) -> None:
+def main(subject_filter: Optional[str] = None, dry_run: bool = False) -> None:
     json_files = list(DATA_PARSED.glob("*.json"))
     if subject_filter:
         json_files = [f for f in json_files if f.stem.startswith(subject_filter)]

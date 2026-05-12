@@ -1,9 +1,11 @@
 import {
+  canUseLocalFallback,
   cleanString,
   getAuthedSupabase,
   isUuid,
   jsonOk,
   numericDocumentId,
+  productionAuthError,
   readBody,
 } from "@/lib/aira/api";
 
@@ -13,7 +15,7 @@ export async function GET() {
     if (supabase && user) {
       const { data, error } = await supabase
         .from("bookmarks")
-        .select("id,document_id,message_id,created_at")
+        .select("id,document_id,message_id,note,created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (!error) return jsonOk({ bookmarks: data || [], source: "supabase" });
@@ -22,6 +24,7 @@ export async function GET() {
     console.error("Bookmark fetch failed", error);
   }
 
+  if (!canUseLocalFallback()) return productionAuthError("Authentication is not configured.");
   return jsonOk({ bookmarks: [], source: "local" });
 }
 
@@ -29,6 +32,7 @@ export async function POST(request: Request) {
   const body = await readBody(request);
   const documentId = numericDocumentId(body.document_id);
   const messageId = isUuid(body.message_id) ? String(body.message_id) : null;
+  const note = cleanString(body.note) || null;
   const fallback = {
     id: cleanString(body.id) || `local-${Date.now()}`,
     ...body,
@@ -46,6 +50,7 @@ export async function POST(request: Request) {
             user_id: user.id,
             document_id: documentId,
             message_id: messageId,
+            note,
           })
           .select()
           .single();
@@ -56,5 +61,6 @@ export async function POST(request: Request) {
     }
   }
 
+  if (!canUseLocalFallback()) return productionAuthError("Bookmark persistence is not configured.");
   return jsonOk({ bookmark: fallback, source: "local" }, { status: 201 });
 }

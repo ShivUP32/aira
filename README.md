@@ -21,7 +21,7 @@ while the product contract and visual system are rebuilt from the markdown specs
 - `/practice` practice mode
 - `/revision` revision mode
 - `/learning` learning mode
-- `/saved` local-first saved list demo
+- `/saved` local-first saved list
 
 ## PWA
 
@@ -48,5 +48,13 @@ The UI follows the attached reference screens:
 2. Add environment variables from `.env.example`.
 3. Wire `/api/chat` to OpenRouter streaming.
 4. Wire `/api/rag/retrieve` to Supabase pgvector.
-5. Replace demo saved data with `/api/saved` delta sync.
+5. Replace seed saved data with `/api/saved` delta sync.
 6. Add Supabase Google OAuth after UI verification.
+
+## Release Smoke Checklist
+
+- `/api/rag/health` reports real Supabase document count; if count is `0` or env is missing, `retrievalSource` is `seed`.
+- Real RAG answers show distinct citation question, answer, source label, and marking-scheme metadata when document metadata provides them.
+- Saving an answer calls `/api/saved` once, stores `serverId` when Supabase returns one, and delete uses that saved server id.
+- Practice submit, Revision quick quiz, and Learning quick check all return visible feedback; authenticated Supabase sessions persist attempts through `/api/practice`.
+- Run `npm run lint` and `npm run build` before release, then smoke `/chat`, `/practice`, `/revision`, `/learning`, and `/saved`.

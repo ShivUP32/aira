@@ -1,10 +1,11 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
-import { cleanString, getAuthedSupabase, isUuid, jsonOk, readBody } from "@/lib/aira/api";
-import { demoAnswer, detectLang, retrieveSeedDocs } from "@/lib/aira/demo-data";
-import { hasOpenRouterEnv, hasRagEnv } from "@/lib/aira/env";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { UIMessage } from "ai";
+import { cleanString, isUuid, jsonError, jsonOk, readBody, requireApiUser } from "@/lib/aira/api";
+import { detectLang } from "@/lib/aira/language";
+import { hasGroqEnv, hasRagEnv, isProduction } from "@/lib/aira/env";
+import { generateWithFallback, streamWithFallback } from "@/lib/llm/groq";
 import { getSystemPrompt, type Mode } from "@/lib/llm/prompts";
-import { formatContextBlock, retrieve } from "@/lib/rag/retrieve";
+import { citationFromDocument, formatContextBlock, retrieve } from "@/lib/rag/retrieve";
 
 type IncomingMessage = {
   role: "user" | "assistant" | "system";
@@ -14,10 +15,6 @@ type IncomingMessage = {
 };
 
 const modes = new Set(["doubt", "learning", "practice", "revision"]);
-const openRouterModels = [
-  process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
-  process.env.OPENROUTER_FALLBACK_MODEL || "google/gemini-2.0-flash-exp:free",
-].filter((model, index, models) => model && models.indexOf(model) === index);
 
 function messageText(message: IncomingMessage) {
   if (typeof message.content === "string") return message.content;
@@ -38,6 +35,9 @@ function lastUserMessage(messages: IncomingMessage[]) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiUser(request, { rateLimit: true, route: "chat" });
+  if (!auth.ok && (!auth.localFallback || !auth.authConfigMissing)) return auth.response;
+
   const body = await readBody(request);
   const messages = (Array.isArray(body.messages) ? body.messages : []) as IncomingMessage[];
   const mode = modes.has(String(body.mode)) ? (String(body.mode) as Mode) : "doubt";
@@ -45,9 +45,10 @@ export async function POST(request: Request) {
   const query = cleanString(body.query || lastUserMessage(messages));
   const language = cleanString(body.language) || detectLang(query);
   const conversationId = isUuid(body.conversationId) ? String(body.conversationId) : undefined;
+  const wantsUiStream = Boolean(cleanString(body.id));
 
   let contextBlock = "";
-  let citations = retrieveSeedDocs(query, subject, 3);
+  let citations: ReturnType<typeof citationFromDocument>[] = [];
 
   if (query && hasRagEnv()) {
     try {
@@ -61,34 +62,17 @@ export async function POST(request: Request) {
       });
       if (docs.length) {
         contextBlock = formatContextBlock(docs);
-        citations = docs.map((doc, index) => {
-          const citation = doc.metadata.citation as (typeof citations)[number] | undefined;
-          return citation || {
-            ...retrieveSeedDocs(query, subject, 1)[0],
-            id: String(doc.id),
-            label: [
-              doc.metadata.year && `CBSE ${doc.metadata.year}`,
-              doc.metadata.subject,
-              doc.metadata.set_label || doc.metadata.set,
-              doc.metadata.q_no && `Q${doc.metadata.q_no}`,
-              doc.metadata.marks && `${doc.metadata.marks}m`,
-            ].filter(Boolean).join(" · "),
-            question: doc.content,
-            answer: doc.content,
-            similarity: doc.similarity || 0.8 - index * 0.05,
-          };
-        });
+        citations = docs.map((doc, index) => ({
+          ...citationFromDocument(doc, query, subject, index),
+          similarity: doc.similarity || 0.8 - index * 0.05,
+        }));
       }
     } catch (error) {
-      console.error("Context retrieval failed, using seed docs", error);
+      console.error("Context retrieval failed", error);
+      if (isProduction()) return jsonError("Retrieval is unavailable.", 503);
     }
   }
 
-  if (!contextBlock) {
-    contextBlock = citations
-      .map((doc, index) => `[${index + 1}] Source: ${doc.label}\nQuestion: ${doc.question}\nSolution: ${doc.answer}`)
-      .join("\n\n---\n\n");
-  }
   const modelMessages = messages
     .filter((message) => message.role !== "system")
     .map((message) => ({
@@ -100,96 +84,151 @@ export async function POST(request: Request) {
     modelMessages.push({ role: "user", content: query });
   }
 
-  if (hasOpenRouterEnv()) {
+  if (hasGroqEnv()) {
     try {
-      const openrouter = createOpenAI({
-        baseURL: "https://openrouter.ai/api/v1",
-        apiKey: process.env.OPENROUTER_API_KEY!,
-        headers: {
-          "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-          "X-Title": "Aira",
-        },
-      });
+      if (wantsUiStream) {
+        const serverConversationId = auth.ok
+          ? await ensureConversation(auth.supabase, auth.user, conversationId, mode, subject, query)
+          : conversationId;
+        const { result, modelId } = await streamWithFallback({
+          system: getSystemPrompt(mode, contextBlock),
+          messages: modelMessages,
+          onFinish: auth.ok
+            ? async ({ text, usage }) => {
+                await persistConversationMessages(
+                  auth.supabase,
+                  auth.user,
+                  serverConversationId,
+                  mode,
+                  subject,
+                  query,
+                  text,
+                  citations,
+                  modelId,
+                  usage?.totalTokens
+                );
+              }
+            : undefined,
+        });
 
-      let result: Awaited<ReturnType<typeof generateText>> | null = null;
-      let modelUsed = "";
-      for (const model of openRouterModels) {
-        try {
-          result = await generateText({
-            model: openrouter(model),
-            system: getSystemPrompt(mode, contextBlock),
-            messages: modelMessages,
-          });
-          modelUsed = model;
-          break;
-        } catch (error) {
-          console.error(`OpenRouter model failed (${model})`, error);
-        }
+        return result.toUIMessageStreamResponse({
+          originalMessages: messages as UIMessage[],
+          messageMetadata: ({ part }) => {
+            if (part.type !== "finish") return undefined;
+            return {
+              conversationId: serverConversationId,
+              citations,
+              source: "groq",
+              model: modelId,
+              mode,
+            };
+          },
+          headers: {
+            "Cache-Control": "no-store, no-transform",
+            "X-Accel-Buffering": "no",
+          },
+        });
       }
 
-      if (!result) throw new Error("All OpenRouter models failed");
+      const { result, modelId } = await generateWithFallback({
+        system: getSystemPrompt(mode, contextBlock),
+        messages: modelMessages,
+      });
 
-      await persistConversationMessages(conversationId, query, result.text, citations, modelUsed, result.usage?.totalTokens);
+      const persistedConversationId = auth.ok
+        ? await persistConversationMessages(auth.supabase, auth.user, conversationId, mode, subject, query, result.text, citations, modelId, result.usage?.totalTokens)
+        : undefined;
 
       return jsonOk({
         answer: result.text,
         citations,
-        source: "openrouter",
-        model: modelUsed,
+        source: "groq",
+        model: modelId,
         usage: result.usage,
         mode,
+        conversationId: persistedConversationId || conversationId,
       });
     } catch (error) {
-      console.error("OpenRouter failed, using local answer", error);
+      console.error("Groq failed", error);
+      if (isProduction()) return jsonError("Chat model is unavailable.", 503);
     }
+  } else if (isProduction() || wantsUiStream) {
+    return jsonError("Chat model is not configured.", 503);
   }
 
-  const answer = demoAnswer(query, mode, citations);
-  await persistConversationMessages(conversationId, query, answer, citations, "seed", undefined);
+  return jsonError("Chat model is not configured.", 503);
+}
 
-  return jsonOk({
-    answer,
-    citations,
-    source: "seed",
-    mode,
-  });
+async function ensureConversation(
+  supabase: SupabaseClient,
+  user: User,
+  conversationId: string | undefined,
+  mode: Mode,
+  subject: string | undefined,
+  query: string
+) {
+  return persistConversationMessages(supabase, user, conversationId, mode, subject, query, "", [], "pending", undefined);
 }
 
 async function persistConversationMessages(
+  supabase: SupabaseClient,
+  user: User,
   conversationId: string | undefined,
+  mode: Mode,
+  subject: string | undefined,
   query: string,
   answer: string,
   citations: unknown[],
   model: string,
   tokens: number | undefined
 ) {
-  if (!conversationId || !query || !answer) return;
+  if (!query) return conversationId;
 
   try {
-    const { supabase, user } = await getAuthedSupabase();
-    if (!supabase || !user) return;
+    let serverConversationId = conversationId;
+    if (serverConversationId) {
+      const { data: conversation } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", serverConversationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!conversation) serverConversationId = undefined;
+    }
 
-    const { data: conversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("id", conversationId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (!conversation) return;
+    if (!serverConversationId) {
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({
+          user_id: user.id,
+          title: query.slice(0, 120) || "New conversation",
+          subject,
+          mode,
+        })
+        .select("id")
+        .single();
+      if (error || !data) throw error || new Error("Conversation create returned no row");
+      serverConversationId = data.id;
+    }
 
-    await supabase.from("messages").insert([
-      { conversation_id: conversationId, role: "user", content: query },
-      {
-        conversation_id: conversationId,
-        role: "assistant",
-        content: answer,
-        citations,
-        model_used: model,
-        tokens_used: tokens,
-      },
-    ]);
-    await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    if (answer) {
+      await supabase.from("messages").insert([
+        { conversation_id: serverConversationId, role: "user", content: query },
+        {
+          conversation_id: serverConversationId,
+          role: "assistant",
+          content: answer,
+          citations,
+          model_used: model,
+          tokens_used: tokens,
+        },
+      ]);
+    }
+    await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", serverConversationId);
+    return serverConversationId;
   } catch (error) {
     console.error("Conversation message persistence failed", error);
+    if (isProduction()) throw error;
+    return conversationId;
   }
 }

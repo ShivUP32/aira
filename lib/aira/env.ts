@@ -13,8 +13,8 @@ export function hasRagEnv() {
   return Boolean(hasSupabaseServiceEnv() && process.env.HF_API_TOKEN);
 }
 
-export function hasOpenRouterEnv() {
-  return Boolean(process.env.OPENROUTER_API_KEY);
+export function hasGroqEnv() {
+  return Boolean(process.env.GROQ_API_KEY);
 }
 
 export function hasUpstashEnv() {
@@ -22,6 +22,27 @@ export function hasUpstashEnv() {
     process.env.UPSTASH_REDIS_REST_URL &&
       process.env.UPSTASH_REDIS_REST_TOKEN
   );
+}
+
+export function isProduction() {
+  return process.env.NODE_ENV === "production";
+}
+
+export function allowDemoAuth() {
+  return !isProduction() && process.env.AIRA_ALLOW_DEMO_AUTH !== "false";
+}
+
+export function isLocalhost(host: string | null | undefined) {
+  const hostname = (host || "").split(":")[0];
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+export function allowLocalTestLogin(host: string | null | undefined) {
+  return allowDemoAuth() && isLocalhost(host);
+}
+
+export function allowMissingEnvLocalFallback() {
+  return !isProduction() && !hasSupabaseEnv();
 }
 
 export function siteUrl() {

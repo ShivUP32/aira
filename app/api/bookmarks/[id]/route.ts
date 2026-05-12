@@ -1,4 +1,4 @@
-import { getAuthedSupabase, isUuid, jsonOk } from "@/lib/aira/api";
+import { canUseLocalFallback, getAuthedSupabase, isUuid, jsonError, jsonOk, productionAuthError } from "@/lib/aira/api";
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +12,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       }
     } catch (error) {
       console.error("Bookmark delete failed", error);
+      if (!canUseLocalFallback()) return jsonError("Bookmark delete failed.", 503);
     }
+  }
+  if (!canUseLocalFallback() && source !== "supabase") {
+    return isUuid(id)
+      ? productionAuthError("Authentication is not configured.")
+      : jsonError("Invalid bookmark id.", 400);
   }
   return jsonOk({ success: true, source });
 }

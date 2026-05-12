@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | Aira",
   },
   description:
-    "The Class 12 board exam buddy that gets you extra marks. AI-powered study assistant for CBSE students.",
+    "The Class 12 board exam buddy that helps you score extra marks. AI-powered study assistant for CBSE students.",
   keywords: [
     "CBSE",
     "Class 12",
@@ -31,14 +31,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Aira — Your Board Exam Buddy",
     description:
-      "The Class 12 board exam buddy that gets you extra marks. Built on 2025 CBSE Board papers.",
+      "The Class 12 board exam buddy that helps you score extra marks. Built on 2025 CBSE Board papers.",
     type: "website",
     locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
     title: "Aira — Your Board Exam Buddy",
-    description: "The Class 12 board exam buddy that gets you extra marks.",
+    description: "The Class 12 board exam buddy that helps you score extra marks.",
   },
   manifest: "/manifest.json",
   icons: {

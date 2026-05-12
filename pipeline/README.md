@@ -24,7 +24,7 @@ data/raw/
   mathematics/
     65-1-1_questions.pdf
     65-1-1_marking-scheme.pdf
-  cs/
+  computer-science/
     83-1-1_questions.pdf
   english/
     1-1-1_questions.pdf
@@ -36,10 +36,16 @@ data/raw/
 # 1. Extract text from PDFs
 python 01_extract.py
 
-# 2. Parse questions + solutions
+# 2a. Split bilingual extracts into language-specific files
+python 02a_split_languages.py
+
+# 2b. Parse questions
 python 02_parse_qa.py
 
-# 3. Generate AI solutions for questions without marking schemes
+# 2c. Match official marking-scheme solutions where available
+python 02c_match_solutions.py
+
+# 3. Generate AI solutions for questions still missing solutions
 python 03_generate_solutions.py
 
 # 4. Auto-tag chapters
@@ -58,8 +64,10 @@ python 06_upload.py             # actual upload
 | Step | Output | Expected size |
 |------|--------|---------------|
 | 01_extract | `data/extracted/{subject}/*.md` | ~500KB/subject |
+| 02a_split_languages | `data/language_split/{subject}/*.md` | one file per language |
 | 02_parse_qa | `data/parsed/{subject}_2025.json` | ~150–300 questions |
-| 03_generate | Updated JSON with solutions | same files |
+| 02c_match_solutions | Updated JSON with official solutions | same files |
+| 03_generate | Updated JSON with generated fallback solutions | same files |
 | 04_tag_chapters | Updated JSON with chapters | same files |
 | 05_embed | `data/embedded/all_chunks.jsonl` | ~2MB for Wave 1 |
 | 06_upload | Supabase `documents` table | ~250 rows (Wave 1) |
@@ -87,12 +95,12 @@ GET /api/rag/health
 | `429 Too Many Requests` in step 3 | Script sleeps 60s automatically. Or wait and re-run — it skips already-solved questions |
 | Hindi text mangled | Make sure the PDF has embedded fonts. Check with `pdfinfo` |
 | Questions parsed incorrectly | Manually edit the JSON in `data/parsed/` before running embed |
-| Duplicate uploads | The upload script is idempotent — safe to re-run |
+| Duplicate uploads | The upload script dedupes by subject + year + real set code + question number + language + OR variant — safe to re-run |
 
 ## Wave 2 & 3
 
-After Wave 1 (Set-1 English) is live, run again with:
-- **Wave 2**: Set-2 + Set-3 English PDFs (drop in `data/raw/`, re-run steps 1–6)
+After Wave 1 (for example `55/1/1` English) is live, run again with:
+- **Wave 2**: Additional English set-code PDFs (drop in `data/raw/`, re-run steps 1–6)
 - **Wave 3**: All Hindi PDFs (same process, language auto-detected as 'hi')
 
 The pipeline is fully idempotent — running with new PDFs won't create duplicates.

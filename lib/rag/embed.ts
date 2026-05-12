@@ -1,5 +1,5 @@
 const HF_MODEL = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2';
-const HF_API_URL = `https://api-inference.huggingface.co/pipeline/feature-extraction/${HF_MODEL}`;
+const HF_API_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
 export async function embedQuery(text: string): Promise<number[]> {
   const token = process.env.HF_API_TOKEN;

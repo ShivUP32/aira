@@ -12,12 +12,18 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
-from config import DATA_RAW, DATA_EXTRACTED, SUBJECTS_USING_MARKER, SUBJECTS_USING_PYMUPDF
+from config import DATA_RAW, DATA_EXTRACTED, SUBJECTS_USING_MARKER, SUBJECTS_USING_PYMUPDF, SUBJECT_MAP
 
 DATA_EXTRACTED.mkdir(parents=True, exist_ok=True)
+
+
+def canonical_subject(name: str) -> str:
+    key = name.strip().lower().replace("_", "-")
+    return SUBJECT_MAP.get(key, key)
 
 
 def extract_with_marker(pdf_path: Path, output_dir: Path) -> str:
@@ -54,7 +60,11 @@ def process_pdf(pdf_path: Path, subject: str, output_base: Path) -> None:
     print(f"  Extracting: {pdf_path.name}")
     try:
         if subject in SUBJECTS_USING_MARKER:
-            text = extract_with_marker(pdf_path, output_base / "images")
+            try:
+                text = extract_with_marker(pdf_path, output_base / "images")
+            except Exception as marker_error:
+                print(f"  ⚠ Marker failed ({marker_error}); falling back to PyMuPDF")
+                text = extract_with_pymupdf(pdf_path)
         else:
             text = extract_with_pymupdf(pdf_path)
 
@@ -66,14 +76,14 @@ def process_pdf(pdf_path: Path, subject: str, output_base: Path) -> None:
         output_file.with_suffix(".error.txt").write_text(str(e))
 
 
-def main(subject_filter: str | None = None) -> None:
+def main(subject_filter: Optional[str] = None) -> None:
     if not DATA_RAW.exists():
         print(f"ERROR: {DATA_RAW} does not exist. Place PDFs there first.")
         sys.exit(1)
 
     subject_dirs = sorted(DATA_RAW.iterdir())
     if subject_filter:
-        subject_dirs = [d for d in subject_dirs if d.name == subject_filter]
+        subject_dirs = [d for d in subject_dirs if canonical_subject(d.name) == canonical_subject(subject_filter)]
         if not subject_dirs:
             print(f"ERROR: No directory found for subject '{subject_filter}'")
             sys.exit(1)
@@ -82,7 +92,7 @@ def main(subject_filter: str | None = None) -> None:
     for subject_dir in subject_dirs:
         if not subject_dir.is_dir():
             continue
-        subject = subject_dir.name
+        subject = canonical_subject(subject_dir.name)
         pdfs = list(subject_dir.glob("*.pdf"))
         if not pdfs:
             continue

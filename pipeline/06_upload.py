@@ -22,7 +22,31 @@ BATCH_SIZE = 50
 
 
 def make_dedup_key(meta: dict) -> str:
-    return f"{meta.get('subject')}|{meta.get('year')}|{meta.get('set')}|{meta.get('q_no')}|{meta.get('language', 'en')}"
+    return "|".join([
+        str(meta.get("subject")),
+        str(meta.get("year")),
+        str(meta.get("set")),
+        str(meta.get("q_no")),
+        str(meta.get("language", "en")),
+        str(meta.get("or_variant", 0)),
+    ])
+
+
+def dedupe_chunks(chunks: list) -> list:
+    """Keep one chunk per production ingestion key before upload."""
+    seen = set()
+    deduped = []
+    skipped = 0
+    for chunk in chunks:
+        key = make_dedup_key(chunk["metadata"])
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
+        deduped.append(chunk)
+    if skipped:
+        print(f"Collapsed {skipped} duplicate local chunk(s) before upload")
+    return deduped
 
 
 def main(dry_run: bool = False) -> None:
@@ -35,6 +59,7 @@ def main(dry_run: bool = False) -> None:
         chunks = [json.loads(line) for line in f if line.strip()]
 
     print(f"Loaded {len(chunks)} chunks from {chunks_file.name}")
+    chunks = dedupe_chunks(chunks)
 
     if dry_run:
         from collections import Counter
@@ -44,6 +69,10 @@ def main(dry_run: bool = False) -> None:
             print(f"  {subj}: {cnt} chunks")
         print(f"\nTotal: {len(chunks)} chunks")
         return
+
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        print("ERROR: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for upload.")
+        sys.exit(1)
 
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 

@@ -223,6 +223,20 @@ em {
   width: 100%;
 }
 
+.test-login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid var(--aira-line);
+  background: var(--aira-cream);
+  color: var(--aira-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .hero-subtext {
   margin-top: 14px;
   color: var(--aira-ink-3);
@@ -468,20 +482,26 @@ em {
   box-shadow: inset 0 0 0 1px var(--aira-indigo);
 }
 
-.subject-grid i {
+.subject-grid input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
   position: absolute;
   top: 16px;
   right: 16px;
-  display: grid;
   width: 20px;
   height: 20px;
-  place-items: center;
-  border: 1px solid var(--aira-line-strong);
+  margin: 0;
+  border: 2px solid var(--aira-line-strong);
   border-radius: 50%;
-  color: white;
-  background: var(--aira-indigo);
-  font-size: 12px;
-  font-style: normal;
+  background: var(--aira-paper);
+  pointer-events: none;
+}
+
+.subject-grid input[type="radio"]:checked {
+  border-color: var(--aira-indigo);
+  background:
+    radial-gradient(circle at center, var(--aira-indigo) 0 42%, transparent 45%),
+    var(--aira-paper);
 }
 
 .segmented {

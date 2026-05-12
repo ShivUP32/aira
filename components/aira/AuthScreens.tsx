@@ -8,7 +8,9 @@ import { Chip } from "@/components/aira/Chip";
 import { subjects } from "@/lib/aira/content";
 import { PROFILE_KEY, writeJson, type LocalProfile } from "@/lib/aira/storage";
 
-export function LoginScreen() {
+export function LoginScreen({ showTestLogin = false }: { showTestLogin?: boolean }) {
+  const canShowTestLogin = showTestLogin && process.env.NODE_ENV !== "production";
+
   return (
     <main className="auth-page web-auth-page">
       <section className="auth-hero-panel">
@@ -19,13 +21,13 @@ export function LoginScreen() {
         <Chip tone="saffron">Free for students</Chip>
         <h1>Sign in once. Keep every doubt, source, and saved answer together.</h1>
         <p>
-          Use Google to start quickly. Aira remembers your subjects, saved
-          explanations, and preferred language across devices.
+          Sign in with Google to keep your subjects, saved explanations, and
+          revision progress synced across your devices.
         </p>
         <div className="auth-points">
           <span><CheckCircle2 size={17} /> Citation-backed answers</span>
-          <span><CheckCircle2 size={17} /> Local-first saved list</span>
-          <span><CheckCircle2 size={17} /> English + हिन्दी support</span>
+          <span><CheckCircle2 size={17} /> Saved answers across devices</span>
+          <span><CheckCircle2 size={17} /> English support in this beta</span>
         </div>
       </section>
 
@@ -33,11 +35,16 @@ export function LoginScreen() {
         <div>
           <div className="section-kicker">Welcome</div>
           <h1>Continue to Aira</h1>
-          <p>No password flow for now. Google sign-in keeps the first release simple.</p>
+          <p>Use your student Google account to continue and save your learning setup.</p>
         </div>
         <a href="/api/auth/google" className="google-button">
           <span>G</span> Continue with Google
         </a>
+        {canShowTestLogin ? (
+          <a href="/api/auth/test?next=/onboarding" className="test-login-button">
+            Continue as test@test.com
+          </a>
+        ) : null}
         <small>
           By continuing, you agree to Aira&apos;s <Link href="/terms">Terms</Link> and{" "}
           <Link href="/privacy">Privacy Policy</Link>. No card needed.
@@ -49,7 +56,7 @@ export function LoginScreen() {
 
 export function OnboardingScreen() {
   const [selected, setSelected] = useState(["physics", "chemistry", "mathematics"]);
-  const [language, setLanguage] = useState<LocalProfile["preferred_language"]>("en");
+  const [language] = useState<LocalProfile["preferred_language"]>("en");
   const selectedLabels = useMemo(
     () => subjects.filter((subject) => selected.includes(subject.id)).map((subject) => subject.label),
     [selected]
@@ -79,13 +86,13 @@ export function OnboardingScreen() {
           <div className="progress-row">
             <Link href="/login">‹</Link>
             <span className="progress-bar"><i /></span>
-            <span>2/3</span>
+            <span>Setup</span>
           </div>
           <div className="section-kicker">Choose your study setup</div>
-          <h1>Pick the subjects Aira should prioritise.</h1>
+          <h1>Choose the subjects you are preparing right now.</h1>
           <p>
-            Your sidebar, suggestions, and practice sets will start here. You
-            can change this anytime from the app.
+            Aira will use these to shape your daily practice, revision prompts,
+            and doubt-solving flow. You can update this anytime.
           </p>
           <div className="subject-grid">
             {subjects.map((subject) => (
@@ -98,7 +105,13 @@ export function OnboardingScreen() {
                 <span style={{ color: subject.color }}>■</span>
                 <strong>{subject.label}</strong>
                 <small>{subject.count}</small>
-                <i>{selected.includes(subject.id) ? "✓" : ""}</i>
+                <input
+                  aria-label={`${subject.label} selected`}
+                  checked={selected.includes(subject.id)}
+                  readOnly
+                  tabIndex={-1}
+                  type="radio"
+                />
               </button>
             ))}
           </div>
@@ -108,9 +121,7 @@ export function OnboardingScreen() {
           <div>
             <label>Explanations in</label>
             <div className="segmented">
-              <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")}>English</button>
-              <button className={language === "hi" ? "active" : ""} onClick={() => setLanguage("hi")}>हिन्दी</button>
-              <button className={language === "both" ? "active" : ""} onClick={() => setLanguage("both")}>Both</button>
+              <button className={language === "en" ? "active" : ""} type="button">English (Beta)</button>
             </div>
           </div>
           <div className="setup-summary">

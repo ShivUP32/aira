@@ -7,14 +7,11 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import {
-  ArrowRight,
   Bookmark,
   Check,
   ChevronDown,
-  Image as ImageIcon,
   LogOut,
   Menu,
-  Mic,
   Search,
   Send,
   Trash2,
@@ -24,14 +21,19 @@ import { AiraMark } from "@/components/aira/AiraMark";
 import { Chip } from "@/components/aira/Chip";
 import { InstallButton } from "@/components/aira/InstallButton";
 import {
-  formulaRows,
+  doubtQuickActions,
+  learningQuickActions,
   modes,
+  practiceQuickActions,
   revisionPack,
+  revisionQuickActions,
   savedItems,
   starterMessages,
+  syllabusReferences,
+  syllabusTopics,
   subjects,
 } from "@/lib/aira/content";
-import { AiraCitation, demoAnswer, retrieveSeedDocs } from "@/lib/aira/demo-data";
+import { emptyCitation, type AiraCitation } from "@/lib/aira/citations";
 import {
   CONVERSATIONS_KEY,
   LocalProfile,
@@ -60,42 +62,72 @@ type LocalConversation = {
   updated_at: string;
 };
 
-const defaultCitation = retrieveSeedDocs("Lenz law physics", "physics", 1)[0];
 const defaultMessages = (starterMessages as { role: "user" | "aira"; text: string | string[] }[]).map((message, index) => ({
   id: `starter-${index}`,
   role: message.role,
   text: Array.isArray(message.text) ? message.text.join("\n\n") : message.text,
-  citations: message.role === "aira" ? [defaultCitation] : undefined,
+  citations: undefined,
 }));
 
-export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
+type PracticeQuestion = {
+  citation: AiraCitation;
+  documentId: number;
+};
+
+export function StudyApp({
+  initialMode = "doubt",
+  initialConversationId,
+  initialSavedId,
+  initialQuery,
+}: {
+  initialMode?: ModeId;
+  initialConversationId?: string;
+  initialSavedId?: string;
+  initialQuery?: string;
+}) {
   const [mode, setMode] = useState<ModeId>(initialMode);
-  const [selectedCitation, setSelectedCitation] = useState<AiraCitation>(defaultCitation);
+  const [selectedCitation, setSelectedCitation] = useState<AiraCitation | null>(null);
+  const [practiceQuestion, setPracticeQuestion] = useState<PracticeQuestion | null>(null);
+  const [practiceStatus, setPracticeStatus] = useState("Choose a subject to load a stored question.");
   const [showCitation, setShowCitation] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(defaultMessages);
   const [conversations, setConversations] = useState<LocalConversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState(() => `local-${Date.now()}`);
+  const [activeConversationId, setActiveConversationId] = useState(initialConversationId || "local-draft");
   const [subject, setSubject] = useState("physics");
   const [language, setLanguage] = useState<LocalProfile["preferred_language"]>("en");
   const [isSending, setIsSending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [status, setStatus] = useState("Local preview ready");
+  const [status, setStatus] = useState("Ready for your next board-exam question.");
 
   useEffect(() => {
     const profile = readJson<LocalProfile>(PROFILE_KEY, { subjects: ["physics", "chemistry", "mathematics"], preferred_language: "en" });
     const localSaved = readJson<LocalSavedItem[]>(SAVED_KEY, savedItems as LocalSavedItem[]).filter((item) => !item.deleted);
     const localConversations = readJson<LocalConversation[]>(CONVERSATIONS_KEY, []);
     writeJson(SAVED_KEY, localSaved);
-    queueMicrotask(() => {
+    const nextConversationId = initialConversationId || localConversations[0]?.id || createLocalId("local");
+    const hydrateTimer = window.setTimeout(() => {
       setSubject(profile.subjects[0] || "physics");
       setLanguage(profile.preferred_language);
       setSavedCount(localSaved.length);
       setConversations(localConversations);
-      setActiveConversationId(localConversations[0]?.id || `local-${Date.now()}`);
+      setActiveConversationId(nextConversationId);
+      if (initialSavedId) {
+        const savedItem = localSaved.find((item) => item.id === initialSavedId);
+        if (savedItem) {
+          setMode("doubt");
+          setSubject(normaliseSubject(savedItem.subject || profile.subjects[0] || "physics"));
+          setChatMessages(seedMessagesFromSaved(savedItem, initialQuery));
+          setStatus("Saved answer loaded into your chat.");
+        }
+      } else if (initialQuery?.trim()) {
+        setMode("doubt");
+        setChatMessages([{ id: createLocalId("u"), role: "user", text: initialQuery.trim() }]);
+        setStatus("Question loaded into chat.");
+      }
       setHydrated(true);
-    });
+    }, 100);
 
     fetch("/api/conversations")
       .then((response) => response.json())
@@ -106,7 +138,9 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
         }
       })
       .catch(() => null);
-  }, []);
+
+    return () => window.clearTimeout(hydrateTimer);
+  }, [initialConversationId, initialQuery, initialSavedId]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -149,8 +183,6 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
 
   const selectSubject = (id: string) => {
     setSubject(id);
-    const citation = retrieveSeedDocs(id, id, 1)[0];
-    if (citation) setSelectedCitation(citation);
     persistProfile({ subjects: [id] });
     setSidebarOpen(false);
   };
@@ -161,15 +193,21 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
   };
 
   const openCitation = (citation?: AiraCitation) => {
-    setSelectedCitation(citation || defaultCitation);
-    setShowCitation(true);
+    if (citation) {
+      setSelectedCitation(citation);
+      setShowCitation(true);
+    }
   };
 
   const saveAnswer = async (message?: ChatMessage, citation = selectedCitation) => {
+    if (!citation) {
+      setStatus("Ask a question first, then save the answer with its source.");
+      return;
+    }
     const sourceMessage = message || [...chatMessages].reverse().find((item) => item.role === "aira");
-      const documentId = Number(citation.id);
-      const item: LocalSavedItem = {
-      id: `sv-${Date.now()}`,
+    const documentId = Number(citation.id);
+    const item: LocalSavedItem = {
+      id: createLocalId("sv"),
       subject: citation.subject || subject,
       title: citation.question || firstUserText(chatMessages) || "Saved Aira answer",
       time: "Just now",
@@ -185,10 +223,10 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
     const next = [item, ...local.filter((entry) => entry.id !== item.id && !entry.deleted)];
     writeJson(SAVED_KEY, next);
     setSavedCount(next.length);
-    setStatus("Saved locally. Sync will run when services are available.");
+    setStatus("Answer saved. It will stay available in Saved answers.");
 
     try {
-      await fetch("/api/saved", {
+      const response = await fetch("/api/saved", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,26 +234,24 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
           document_id: Number.isSafeInteger(documentId) ? documentId : undefined,
         }),
       });
-      await fetch("/api/bookmarks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: item.title,
-          answer: item.answer,
-          document_id: Number.isSafeInteger(documentId) ? documentId : undefined,
-          source_ids: [citation.id],
-          metadata: { citation, mode, subject },
-        }),
-      });
-      setStatus("Saved and sync queued.");
+      const payload = await response.json();
+      const syncedItem = payload.item as LocalSavedItem | undefined;
+      if (syncedItem?.serverId || syncedItem?.synced) {
+        const current = readJson<LocalSavedItem[]>(SAVED_KEY, []);
+        const merged = mergeSaved([{ ...item, ...syncedItem, id: item.id }], current.filter((entry) => entry.id !== item.id));
+        writeJson(SAVED_KEY, merged);
+        setStatus("Answer saved to your account.");
+      } else {
+        setStatus("Answer saved. It will stay available in Saved answers.");
+      }
     } catch {
-      setStatus("Saved locally. Server sync is unavailable in this preview.");
+      setStatus("Answer saved. It will stay available in Saved answers.");
     }
   };
 
   const sendMessage = async (text: string) => {
     if (isSending) return;
-    const userMessage: ChatMessage = { id: `u-${Date.now()}`, role: "user", text };
+    const userMessage: ChatMessage = { id: createLocalId("u"), role: "user", text };
     const outgoing = [...chatMessages, userMessage];
     setChatMessages(outgoing);
     setIsSending(true);
@@ -237,18 +273,19 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
         }),
       });
       const payload = await response.json();
-      const citations = ((payload.citations || []) as AiraCitation[]).length
-        ? (payload.citations as AiraCitation[])
-        : retrieveSeedDocs(text, subject, 3);
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Chat request failed");
+      }
+      const citations = ((payload.citations || []) as AiraCitation[]).filter((item) => item.question || item.answer);
       const airaMessage: ChatMessage = {
-        id: `a-${Date.now()}`,
+        id: createLocalId("a"),
         role: "aira",
-        text: payload.answer || demoAnswer(text, mode, citations),
+        text: payload.answer || "Aira could not generate an answer right now.",
         citations,
       };
       setChatMessages((messages) => [...messages, airaMessage]);
-      setSelectedCitation(citations[0] || defaultCitation);
-      setStatus(payload.source === "openrouter" ? "Answered with retrieved sources." : "Answered with seeded local sources.");
+      setSelectedCitation(citations[0] || null);
+      setStatus(citations.length ? "Answer ready with source citations." : "Answer ready. No matching source was found yet.");
 
       fetch("/api/conversations", {
         method: "POST",
@@ -265,20 +302,19 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
         }),
       }).catch(() => null);
     } catch {
-      const citations = retrieveSeedDocs(text, subject, 3);
       setChatMessages((messages) => [
         ...messages,
-        { id: `a-${Date.now()}`, role: "aira", text: demoAnswer(text, mode, citations), citations },
+        { id: createLocalId("a"), role: "aira", text: "Aira could not reach the answer service right now. Please try again in a moment.", citations: [] },
       ]);
-      setSelectedCitation(citations[0] || defaultCitation);
-      setStatus("Network failed, so Aira used local seeded sources.");
+      setSelectedCitation(null);
+      setStatus("Answer service unavailable.");
     } finally {
       setIsSending(false);
     }
   };
 
   const newChat = () => {
-    setActiveConversationId(`local-${Date.now()}`);
+    setActiveConversationId(createLocalId("local"));
     setChatMessages([]);
     setSidebarOpen(false);
     setStatus("New chat started.");
@@ -310,10 +346,45 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
   };
 
   const practiceCitation = (citation = selectedCitation) => {
+    if (!citation) {
+      setMode("practice");
+      setStatus("Choose a stored question to start practice.");
+      return;
+    }
     setSelectedCitation(citation);
+    setPracticeQuestion({ citation, documentId: Number(citation.id) });
     setShowCitation(false);
     setMode("practice");
     setStatus(`Practice loaded from ${citation.label}.`);
+  };
+
+  const loadPracticeQuestion = async (nextSubject = subject, chapter?: string) => {
+    setMode("practice");
+    setSubject(nextSubject);
+    setPracticeStatus("Loading a stored question...");
+    try {
+      const params = new URLSearchParams({ subject: nextSubject, language: "en" });
+      if (chapter) params.set("chapter", chapter);
+      const response = await fetch(`/api/practice/question?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.ok || !payload.citation || !payload.documentId) {
+        throw new Error(payload.error || "No stored question available");
+      }
+      const next = { citation: payload.citation as AiraCitation, documentId: Number(payload.documentId) };
+      setPracticeQuestion(next);
+      setSelectedCitation(next.citation);
+      setPracticeStatus("");
+      setStatus(`Practice loaded from ${next.citation.label}.`);
+    } catch {
+      setPracticeQuestion(null);
+      setPracticeStatus("No stored questions available yet for this selection.");
+      setStatus("No stored questions available yet.");
+    }
+  };
+
+  const sendAndShowChat = (text: string) => {
+    sendMessage(text);
+    setMode("doubt");
   };
 
   return (
@@ -342,9 +413,9 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
           ))}
           {!hydrated || !conversations.length ? (
             <>
-              <button onClick={() => sendMessage("Explain Lenz's law with a 5-mark answer")}>Lenz&apos;s law direction trick</button>
-              <button onClick={() => { const citation = retrieveSeedDocs("logarithmic differentiation", "mathematics", 1)[0] || defaultCitation; setSelectedCitation(citation); setMode("practice"); selectSubject("mathematics"); }}>Continuity & differentiability</button>
-              <button onClick={() => { const citation = retrieveSeedDocs("bohr atomic model", "physics", 1)[0] || defaultCitation; setSelectedCitation(citation); setMode("learning"); selectSubject("physics"); }}>Bohr&apos;s atomic model</button>
+              {doubtQuickActions.slice(0, 3).map((action) => (
+                <button key={action} onClick={() => sendMessage(action)}>{action}</button>
+              ))}
             </>
           ) : null}
         </div>
@@ -364,10 +435,10 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
           <button className="icon-button" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar"><Menu size={20} /></button>
           <div>
             <h1>{headerTitle(mode, selectedCitation)}</h1>
-            <p>• {subjectLabel(subject)} · {languageLabel(language)} {savedCount ? `· ${savedCount} saved` : ""}</p>
+            <p>• {subjectLabel(subject)} · English {savedCount ? `· ${savedCount} saved` : ""}</p>
           </div>
           <div className="header-actions">
-            <LanguageToggle language={language} setLanguage={selectLanguage} />
+            <LanguageToggle setLanguage={selectLanguage} />
             <InstallButton compact />
             <Link href="/saved" className="icon-button" aria-label="Saved answers"><Bookmark size={20} /></Link>
           </div>
@@ -382,36 +453,50 @@ export function StudyApp({ initialMode = "doubt" }: { initialMode?: ModeId }) {
               onCitation={openCitation}
               onSave={saveAnswer}
               onPractice={practiceCitation}
+              onStartPractice={loadPracticeQuestion}
               onSend={sendMessage}
             />
           ) : null}
-          {mode === "practice" ? <PracticeView citation={selectedCitation} /> : null}
-          {mode === "revision" ? <RevisionView subject={subject} /> : null}
-          {mode === "learning" ? <LearningView language={language} /> : null}
+          {mode === "practice" ? (
+            <PracticeView
+              key={practiceQuestion?.documentId || subject}
+              question={practiceQuestion}
+              status={practiceStatus}
+              onLoadQuestion={loadPracticeQuestion}
+            />
+          ) : null}
+          {mode === "revision" ? <RevisionView subject={subject} onSend={sendAndShowChat} onLoadQuestion={loadPracticeQuestion} /> : null}
+          {mode === "learning" ? <LearningView subject={subject} onSend={sendAndShowChat} onLoadQuestion={loadPracticeQuestion} /> : null}
         </div>
         {mode === "doubt" ? <ChatInput onSend={sendMessage} disabled={isSending} /> : null}
       </section>
       {sidebarOpen ? <button className="mobile-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar" /> : null}
 
       <aside className="source-panel">
-        <CitationDetail
-          compact={false}
-          citation={selectedCitation}
-          onPractice={practiceCitation}
-          onSave={() => saveAnswer(undefined, selectedCitation)}
-        />
+        {selectedCitation ? (
+          <CitationDetail
+            compact={false}
+            citation={selectedCitation}
+            onPractice={practiceCitation}
+            onSave={() => saveAnswer(undefined, selectedCitation)}
+          />
+        ) : (
+          <EmptySourcePanel />
+        )}
       </aside>
 
       {showCitation ? (
         <div className="modal-backdrop" onClick={() => setShowCitation(false)}>
           <div className="modal-sheet" onClick={(event) => event.stopPropagation()}>
-            <button className="close-button" onClick={() => setShowCitation(false)}><X size={18} /></button>
-            <CitationDetail
-              compact
-              citation={selectedCitation}
-              onPractice={practiceCitation}
-              onSave={() => saveAnswer(undefined, selectedCitation)}
-            />
+            <button className="close-button" onClick={() => setShowCitation(false)} aria-label="Close source panel"><X size={18} /></button>
+            {selectedCitation ? (
+              <CitationDetail
+                compact
+                citation={selectedCitation}
+                onPractice={practiceCitation}
+                onSave={() => saveAnswer(undefined, selectedCitation)}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -430,12 +515,12 @@ export function SavedScreen() {
   useEffect(() => {
     const local = readJson<LocalSavedItem[]>(SAVED_KEY, savedItems as LocalSavedItem[]).filter((item) => !item.deleted);
     writeJson(SAVED_KEY, local);
-    queueMicrotask(() => {
+    const hydrateTimer = window.setTimeout(() => {
       setItems(local);
       setExpandedId(local[0]?.id || null);
       setHydrated(true);
-      setStatus(`${local.length} local items loaded instantly.`);
-    });
+      setStatus(`${local.length} saved item${local.length === 1 ? "" : "s"} loaded.`);
+    }, 100);
 
     const since = local.reduce((latest, item) => Math.max(latest, item.ts || 0), 0);
     fetch(`/api/saved?since=${since}`)
@@ -448,12 +533,14 @@ export function SavedScreen() {
             writeJson(SAVED_KEY, merged);
             return merged;
           });
-          setStatus(`${remote.length} cloud save${remote.length === 1 ? "" : "s"} merged.`);
+          setStatus(`${remote.length} saved item${remote.length === 1 ? "" : "s"} updated.`);
         } else {
-          setStatus(payload.source === "supabase" ? "Synced. No new cloud saves." : "Local preview mode. Sync will attach after login/env setup.");
+          setStatus("Saved answers are up to date.");
         }
       })
-      .catch(() => setStatus("Local saves are available. Cloud sync is offline."));
+      .catch(() => setStatus("Saved answers are available on this device."));
+
+    return () => window.clearTimeout(hydrateTimer);
   }, []);
 
   useEffect(() => {
@@ -466,7 +553,8 @@ export function SavedScreen() {
       writeJson(SAVED_KEY, next);
       return next;
     });
-    fetch(`/api/bookmarks/${id}`, { method: "DELETE" }).catch(() => null);
+    const serverId = items.find((item) => item.id === id)?.serverId;
+    fetch(`/api/saved/${encodeURIComponent(serverId || id)}`, { method: "DELETE" }).catch(() => null);
   };
 
   const visibleItems = items.filter((item) => {
@@ -503,7 +591,7 @@ export function SavedScreen() {
           ))}
         </div>
         <div className="sync-rail">
-          <span>●</span> Local-first saves are ready <code>cached · {items.length} local</code>
+          <span>●</span> Saved answers ready <code>{items.length} saved</code>
         </div>
         <div className="saved-list">
           {visibleItems.map((item) => {
@@ -564,6 +652,7 @@ function DoubtView({
   onCitation,
   onSave,
   onPractice,
+  onStartPractice,
   onSend,
 }: {
   messages: ChatMessage[];
@@ -572,6 +661,7 @@ function DoubtView({
   onCitation: (citation?: AiraCitation) => void;
   onSave: (message?: ChatMessage, citation?: AiraCitation) => void;
   onPractice: (citation?: AiraCitation) => void;
+  onStartPractice: (subject?: string, chapter?: string) => void;
   onSend: (text: string) => void;
 }) {
   return (
@@ -579,8 +669,8 @@ function DoubtView({
       {!messages.length ? (
         <div className="empty-state">
           <AiraMark size={34} />
-          <h2>Ask anything from your board prep.</h2>
-          <p>Aira will retrieve the closest source, answer in exam style, and keep citations attached.</p>
+          <h2>Start with a board-exam question.</h2>
+          <p>Get marks-focused answers with citations, then save strong responses and switch to practice.</p>
         </div>
       ) : null}
       {messages.map((message) => {
@@ -588,67 +678,95 @@ function DoubtView({
           return <div className="message user" key={message.id}>{message.text}</div>;
         }
 
-        const citation = message.citations?.[0] || defaultCitation;
+        const citation = message.citations?.[0];
         return (
           <article className="message aira" key={message.id}>
             <AiraMark size={24} />
             <div>
               <MarkdownBlock content={message.text} />
-              {citation.answer ? <div className="formula-box">{citation.scheme?.[0]?.detail || citation.answer}</div> : null}
-              <div className="citation-row">
-                {(message.citations || [citation]).slice(0, 3).map((item) => (
-                  <button className="citation-button" key={item.id} onClick={() => onCitation(item)}>
-                    <Chip tone="source">{item.label}</Chip>
-                  </button>
-                ))}
-              </div>
+              {citation?.answer ? <div className="formula-box">{citation.scheme?.[0]?.detail || citation.answer}</div> : null}
+              {message.citations?.length ? (
+                <div className="citation-row">
+                  {message.citations.slice(0, 3).map((item) => (
+                    <button className="citation-button" key={item.id} onClick={() => onCitation(item)}>
+                      <Chip tone="source">{item.label}</Chip>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="answer-tools">
                 <button onClick={() => onSave(message, citation)}><Bookmark size={15} /> Save</button>
-                <button onClick={() => onSend("Give me one related question from the same topic.")}>Related Q</button>
-                <button onClick={() => onPractice(citation)}>Practice</button>
-                <button onClick={() => onSend("Explain this in Hindi.")}>हिन्दी</button>
-                <button onClick={() => onCitation(citation)}><Check size={15} /> Source</button>
+                <button onClick={() => onSend("Give me one related board-exam question from this topic.")}>Related question</button>
+                <button onClick={() => citation ? onPractice(citation) : onStartPractice()}>Practice</button>
+                {citation ? <button onClick={() => onCitation(citation)}><Check size={15} /> Source</button> : null}
               </div>
             </div>
           </article>
         );
       })}
       <div className="prompt-pills">
-        <button onClick={() => onSend("Show me a related question.")}>Show me a related Q</button>
-        <button onClick={() => onPractice(defaultCitation)}>Switch to Practice</button>
-        <button onClick={() => onSend("हिन्दी में समझाइए")}>हिन्दी में समझाइए</button>
+        {doubtQuickActions.map((action) => (
+          <button key={action} onClick={() => onSend(action)}>{action}</button>
+        ))}
+        <button onClick={() => onStartPractice()}>Start practice</button>
       </div>
       <p className="status-line">{isSending ? "Aira is thinking..." : status}</p>
     </div>
   );
 }
 
-function PracticeView({ citation }: { citation: AiraCitation }) {
+function PracticeView({
+  question,
+  status,
+  onLoadQuestion,
+}: {
+  question: PracticeQuestion | null;
+  status: string;
+  onLoadQuestion: (subject?: string, chapter?: string) => void;
+}) {
   const [answer, setAnswer] = useState("");
   const [score, setScore] = useState<number | null>(null);
+  const [maxMarks, setMaxMarks] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("");
   const [revealed, setRevealed] = useState(false);
+  const [attemptStatus, setAttemptStatus] = useState("");
+  const citation = question?.citation;
 
   const submit = async () => {
-    const keywords = citation.scheme.map((item) => item.title.toLowerCase().split(/\W+/)[0]).filter(Boolean);
-    const matched = keywords.filter((word) => answer.toLowerCase().includes(word)).length;
-    const localScore = Math.min(citation.marks || 3, Math.max(1, Math.round((matched / Math.max(1, keywords.length)) * (citation.marks || 3))));
-    setScore(localScore);
-    setFeedback(`You included ${matched || 1} scoring cue${matched === 1 ? "" : "s"}. Add the exact marking-scheme words for full marks.`);
+    if (!question) return;
+    setAttemptStatus("Checking against the stored marking scheme...");
 
     try {
       const response = await fetch("/api/practice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer, citation }),
+        body: JSON.stringify({ answer, documentId: question.documentId }),
       });
       const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Practice check failed");
       if (typeof payload.score === "number") setScore(payload.score);
+      if (typeof payload.maxMarks === "number") setMaxMarks(payload.maxMarks);
       if (payload.feedback) setFeedback(payload.feedback);
+      setAttemptStatus(payload.source === "supabase" ? "Attempt saved to your practice history." : "Attempt checked and ready to improve.");
     } catch {
-      // local score already shown
+      setAttemptStatus("Could not check this attempt right now.");
     }
   };
+
+  if (!citation) {
+    return (
+      <div className="mode-page">
+        <div className="section-kicker">Practice · Stored questions</div>
+        <h2>Choose a stored board-style question.</h2>
+        <p>{status || "Practice uses questions extracted from the uploaded CBSE papers."}</p>
+        <div className="prompt-pills">
+          {practiceQuickActions.map((action) => (
+            <button key={action.label} onClick={() => onLoadQuestion(action.subject)}>{action.label}</button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mode-page">
@@ -671,12 +789,15 @@ function PracticeView({ citation }: { citation: AiraCitation }) {
       </div>
       {revealed || score !== null ? (
         <div className="score-card">
-          <strong>{score !== null ? `Score: ${score} / ${citation.marks || 3}` : "Model solution"}</strong>
+          <strong>{score !== null ? `Score: ${score} / ${maxMarks || citation.marks || 3}` : "Model solution"}</strong>
           <p>{feedback || citation.answer}</p>
           <p>{citation.answer}</p>
+          {attemptStatus ? <small>{attemptStatus}</small> : null}
         </div>
       ) : null}
       <div className="bottom-bar inline">
+        <button className="secondary-button" onClick={() => { setAnswer(""); setScore(null); setMaxMarks(null); setFeedback(""); setRevealed(false); setAttemptStatus(""); }}>Try again</button>
+        <button className="secondary-button" onClick={() => onLoadQuestion(citation.subject)}>New question</button>
         <button className="secondary-button" onClick={() => setRevealed(true)}>Reveal solution</button>
         <button className="primary-button" onClick={submit} disabled={!answer.trim()}>Submit answer</button>
       </div>
@@ -684,67 +805,104 @@ function PracticeView({ citation }: { citation: AiraCitation }) {
   );
 }
 
-function RevisionView({ subject }: { subject: string }) {
-  const [checked, setChecked] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const doc = retrieveSeedDocs(subject, subject, 1)[0] || defaultCitation;
-
+function RevisionView({
+  subject,
+  onSend,
+  onLoadQuestion,
+}: {
+  subject: string;
+  onSend: (text: string) => void;
+  onLoadQuestion: (subject?: string, chapter?: string) => void;
+}) {
+  const topics = syllabusTopics[normaliseSubject(subject) as keyof typeof syllabusTopics] || [];
   return (
     <div className="mode-page">
       <div className="section-kicker">Revision · {subjectLabel(subject)}</div>
-      <h2>{doc.chapter}</h2>
+      <h2>Revise from the official Class 12 CBSE syllabus.</h2>
+      <p>Pick a topic and Aira will create a concise Groq-powered revision pack with exam-focused cues.</p>
       <div className="revision-list">
-        {(doc.scheme?.length ? doc.scheme.map((item) => [item.title, item.detail]) : revisionPack).map(([title, text], index) => (
-          <article key={title}>
+        {(topics.length ? topics : revisionPack.map((item) => item[0])).map((topic, index) => (
+          <article key={topic}>
             <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{title}</strong>
-            <p>{text}</p>
+            <strong>{topic}</strong>
+            <p>Generate a short revision pack and then practise a stored question from this area.</p>
           </article>
         ))}
       </div>
-      <div className="section-kicker">Formulas</div>
-      <div className="formula-table">
-        {formulaRows.map(([name, formula]) => (
-          <div key={name}><span>{name}</span><strong>{formula}</strong></div>
+      <div className="prompt-pills">
+        {revisionQuickActions.map((action) => (
+          <button key={action.label} onClick={() => onSend(`${action.label}. Keep it concise for Class 12 CBSE and include quick check questions.`)}>
+            {action.label}
+          </button>
         ))}
       </div>
-      <div className="quick-quiz">
-        <span>1</span>
-        <p>State the most important scoring cue from this chapter.</p>
-        <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Type your answer..." />
+      <div className="bottom-bar inline">
+        <button className="secondary-button" onClick={() => onLoadQuestion(subject)}>Practice a stored question</button>
+        <button className="primary-button" onClick={() => onSend(`Revise ${subjectLabel(subject)} for Class 12 CBSE. Use the official syllabus and give a quick quiz.`)}>Generate revision pack</button>
       </div>
-      {checked ? <div className="score-card"><strong>Good.</strong><p>Compare your answer with this cue: {doc.scheme?.[0]?.detail || doc.answer}</p></div> : null}
-      <button className="primary-button full" onClick={() => setChecked(true)}>Submit & score me</button>
+      <SyllabusReferences />
     </div>
   );
 }
 
-function LearningView({ language }: { language: LocalProfile["preferred_language"] }) {
-  const [checked, setChecked] = useState(false);
-  const [answer, setAnswer] = useState("");
-
+function LearningView({
+  subject,
+  onSend,
+  onLoadQuestion,
+}: {
+  subject: string;
+  onSend: (text: string) => void;
+  onLoadQuestion: (subject?: string, chapter?: string) => void;
+}) {
+  const topics = syllabusTopics[normaliseSubject(subject) as keyof typeof syllabusTopics] || [];
   return (
     <div className="mode-page learning">
       <div className="progress-segments three"><span className="done" /><span /><span /></div>
-      <h2>The intuition before the formula</h2>
-      <p>
-        Aira teaches from the idea first, then moves into the exam sentence.
-        Use {languageLabel(language).toLowerCase()} explanations when you want the wording to match your study style.
-      </p>
+      <div className="section-kicker">Learning · Class 12 CBSE syllabus</div>
+      <h2>Pick a topic to learn step by step.</h2>
+      <p>Aira will teach from the official syllabus and keep the explanation focused on board-exam language.</p>
       <div className="lesson-card">
-        <div className="section-kicker">Three scoring moves</div>
-        <p><em>i.</em> Name the principle in one clean sentence.</p>
-        <p><em>ii.</em> Apply it to the exact situation in the question.</p>
-        <p><em>iii.</em> End with the consequence the examiner expects.</p>
+        <div className="section-kicker">Syllabus topics</div>
+        {(topics.length ? topics : ["Choose a subject from the sidebar"]).map((topic, index) => (
+          <p key={topic}><em>{index + 1}.</em> <strong>{topic}</strong></p>
+        ))}
       </div>
-      <div className="quick-check">
-        <div className="section-kicker">Quick check</div>
-        <p>In your own words: what is the scoring phrase you would underline?</p>
-        <input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Type 1-2 sentences..." />
-        {checked ? <p className="feedback-line">Nice. Keep the wording compact and include the source keyword: “opposes the change” or the equivalent cue for your chapter.</p> : null}
-        <button className="primary-button full" onClick={() => setChecked(true)}>Check <ArrowRight size={16} /></button>
+      <div className="prompt-pills">
+        {learningQuickActions.map((action) => (
+          <button key={action.label} onClick={() => onSend(`${action.label} for Class 12 CBSE. Teach it step by step and end with a quick check.`)}>
+            {action.label}
+          </button>
+        ))}
       </div>
+      <div className="bottom-bar inline">
+        <button className="secondary-button" onClick={() => onLoadQuestion(subject)}>Practice after learning</button>
+        <button className="primary-button" onClick={() => onSend(`Teach me ${subjectLabel(subject)} from the Class 12 CBSE syllabus step by step.`)}>Start learning</button>
+      </div>
+      <SyllabusReferences />
     </div>
+  );
+}
+
+function SyllabusReferences() {
+  return (
+    <div className="source-card compact">
+      <div className="section-kicker">Official syllabus references</div>
+      {syllabusReferences.map(([label, href]) => (
+        <a key={href} href={href} target="_blank" rel="noreferrer">{label}</a>
+      ))}
+    </div>
+  );
+}
+
+function EmptySourcePanel() {
+  return (
+    <article className="citation-detail compact">
+      <div className="source-topline">
+        <span>Sources</span>
+      </div>
+      <h2>Ask a question to see sources.</h2>
+      <p className="source-question">Aira will attach matching CBSE paper sources when the stored documents contain a close match.</p>
+    </article>
   );
 }
 
@@ -806,11 +964,12 @@ function ChatInput({ onSend, disabled }: { onSend: (text: string) => void; disab
         onKeyDown={(event) => {
           if (event.key === "Enter") submit();
         }}
-        placeholder="Ask a doubt..."
+        placeholder="Ask a board-exam question..."
       />
-      <button className="icon-button" onClick={() => setValue((current) => `${current} [image attached]`)}><ImageIcon size={18} /></button>
-      <button className="icon-button" onClick={() => setValue((current) => `${current} Explain by voice note.`)}><Mic size={18} /></button>
-      <button className="send-button" disabled={!canSend} onClick={submit}><Send size={18} /></button>
+      <button className="send-button" disabled={!canSend} onClick={submit}>
+        <Send size={18} />
+        <span className="sr-only">Send message</span>
+      </button>
     </div>
   );
 }
@@ -826,38 +985,26 @@ function MarkdownBlock({ content }: { content: string }) {
 }
 
 function LanguageToggle({
-  language,
   setLanguage,
 }: {
-  language: LocalProfile["preferred_language"];
   setLanguage: (language: LocalProfile["preferred_language"]) => void;
 }) {
   return (
-    <div className="mini-segmented" aria-label="Explanation language">
-      {(["en", "hi", "both"] as const).map((item) => (
-        <button className={language === item ? "active" : ""} key={item} onClick={() => setLanguage(item)}>
-          {item === "en" ? "EN" : item === "hi" ? "HI" : "Both"}
-        </button>
-      ))}
+    <div className="mini-segmented" aria-label="Language">
+      <button className="active" onClick={() => setLanguage("en")}>EN</button>
     </div>
   );
 }
 
-function headerTitle(mode: ModeId, citation: AiraCitation) {
-  if (mode === "practice") return citation.topic || "Practice";
-  if (mode === "revision") return citation.chapter || "Revision";
+function headerTitle(mode: ModeId, citation: AiraCitation | null) {
+  if (mode === "practice") return citation?.topic || "Practice";
+  if (mode === "revision") return citation?.chapter || "Revision";
   if (mode === "learning") return "Learning path";
-  return citation.topic || "Doubt Solver";
+  return citation?.topic || "Doubt Solver";
 }
 
 function subjectLabel(id: string) {
   return subjects.find((subject) => subject.id === normaliseSubject(id))?.label || id;
-}
-
-function languageLabel(language: LocalProfile["preferred_language"]) {
-  if (language === "hi") return "Hindi";
-  if (language === "both") return "English + Hindi";
-  return "English";
 }
 
 function normaliseSubject(subject: string) {
@@ -880,4 +1027,32 @@ function mergeSaved(remote: LocalSavedItem[], local: LocalSavedItem[]) {
   return [...map.values()]
     .filter((item) => !item.deleted)
     .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+}
+
+function createLocalId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function seedMessagesFromSaved(item: LocalSavedItem, query?: string): ChatMessage[] {
+  const userText = query?.trim() || item.title || "Continue from this saved answer.";
+  return [
+    { id: createLocalId("u"), role: "user", text: userText },
+    {
+      id: createLocalId("a"),
+      role: "aira",
+      text: item.answer || "Saved answer loaded. Ask a follow-up to continue.",
+      citations: item.source
+        ? [
+          {
+              ...emptyCitation,
+              id: item.citationId || "",
+              subject: normaliseSubject(item.subject || ""),
+              question: item.title || "",
+              answer: item.answer || "",
+              label: item.source,
+            },
+          ]
+        : undefined,
+    },
+  ];
 }

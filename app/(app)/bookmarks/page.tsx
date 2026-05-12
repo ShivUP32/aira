@@ -1,5 +1,5 @@
-import { SavedScreen } from "@/components/aira/StudyApp";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <SavedScreen />;
+  redirect("/saved");
 }

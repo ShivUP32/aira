@@ -1,9 +1,11 @@
-import { cleanLimit, cleanString, jsonOk, readBody } from "@/lib/aira/api";
-import { retrieveSeedDocs } from "@/lib/aira/demo-data";
-import { hasRagEnv } from "@/lib/aira/env";
-import { retrieve } from "@/lib/rag/retrieve";
+import { cleanLimit, cleanString, jsonError, jsonOk, readBody, requireApiUser } from "@/lib/aira/api";
+import { hasRagEnv, isProduction } from "@/lib/aira/env";
+import { citationFromDocument, retrieve } from "@/lib/rag/retrieve";
 
 export async function POST(request: Request) {
+  const auth = await requireApiUser(request, { rateLimit: true, route: "rag:retrieve" });
+  if (!auth.ok && (!auth.localFallback || !auth.authConfigMissing)) return auth.response;
+
   const body = await readBody(request);
   const query = cleanString(body.query);
   const subject = cleanString(body.subject) || undefined;
@@ -21,33 +23,25 @@ export async function POST(request: Request) {
       if (language && language !== "both") filter.language = language;
       const results = await retrieve({ query, filter, limit });
       if (results.length) {
-        return jsonOk({ results, source: "supabase" });
+        return jsonOk({
+          results: results.map((doc, index) => ({
+            ...doc,
+            metadata: {
+              ...doc.metadata,
+              citation: citationFromDocument(doc, query, subject, index),
+            },
+          })),
+          source: "supabase",
+        });
       }
+      return jsonOk({ results: [], source: "supabase" });
     } catch (error) {
-      console.error("RAG retrieve failed, falling back to seed docs", error);
+      console.error("RAG retrieve failed", error);
+      return jsonError("Retrieval is unavailable.", 503);
     }
+  } else if (isProduction()) {
+    return jsonError("Retrieval is not configured.", 503);
   }
 
-  return jsonOk({
-    results: retrieveSeedDocs(query, subject, limit).map((doc) => ({
-      id: doc.id,
-      content: `Question: ${doc.question}\n\nSolution: ${doc.answer}`,
-      metadata: {
-        subject: doc.subject,
-        year: doc.year,
-        set: doc.set,
-        set_label: doc.set_label,
-        section: doc.section,
-        q_no: doc.q_no,
-        marks: doc.marks,
-        chapter: doc.chapter,
-        topic: doc.topic,
-        language: doc.language,
-        solution_source: doc.solution_source,
-        citation: doc,
-      },
-      similarity: doc.similarity,
-    })),
-    source: "seed",
-  });
+  return jsonOk({ results: [], source: "empty" });
 }

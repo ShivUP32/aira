@@ -11,12 +11,13 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Dict, List
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
 from config import DATA_PARSED
 
-CHAPTER_KEYWORDS: dict[str, list[str]] = {
+CHAPTER_KEYWORDS: Dict[str, List[str]] = {
     # Physics
     "Electric Charges and Fields": ["coulomb", "electric field", "gauss", "flux", "charge distribution", "dipole"],
     "Electrostatic Potential": ["potential", "capacitor", "capacitance", "equipotential", "dielectric"],

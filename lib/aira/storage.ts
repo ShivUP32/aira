@@ -5,6 +5,7 @@ export const PROFILE_KEY = `aira:profile:${DEMO_USER_ID}`;
 
 export type LocalSavedItem = {
   id: string;
+  serverId?: string;
   subject: string;
   title: string;
   time: string;

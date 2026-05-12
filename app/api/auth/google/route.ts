@@ -1,13 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { hasSupabaseEnv, siteUrl } from "@/lib/aira/env";
+import { allowDemoAuth, hasSupabaseEnv, siteUrl } from "@/lib/aira/env";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   if (hasSupabaseEnv()) {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -16,6 +13,10 @@ export async function GET() {
       },
     });
     if (!error && data.url) return NextResponse.redirect(data.url);
+  }
+
+  if (!allowDemoAuth()) {
+    return NextResponse.redirect(`${siteUrl()}/login?error=auth_unavailable`);
   }
 
   const response = NextResponse.redirect(`${siteUrl()}/onboarding?demo=1`);

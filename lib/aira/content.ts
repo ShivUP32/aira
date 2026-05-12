@@ -13,7 +13,7 @@ export const subjects = [
   { id: "physics", label: "Physics", short: "Phy", count: "~40 Qs", color: "#4C44B8" },
   { id: "chemistry", label: "Chemistry", short: "Chem", count: "~40 Qs", color: "#B23A48" },
   { id: "mathematics", label: "Mathematics", short: "Math", count: "~50 Qs", color: "#DC8B3F" },
-  { id: "computer-science", label: "Computer Sci.", short: "CS", count: "~30 Qs", color: "#4F7A6E" },
+  { id: "computer-science", label: "Computer Science", short: "CS", count: "~30 Qs", color: "#4F7A6E" },
   { id: "english", label: "English Core", short: "Eng", count: "~25 Qs", color: "#6B6680" },
 ];
 
@@ -23,28 +23,28 @@ export const modes = [
     label: "Doubt Solver",
     short: "Doubt",
     icon: MessageCircleQuestion,
-    description: "Free-form Q&A with citations.",
+    description: "Exam-focused answers with citation evidence.",
   },
   {
     id: "learning",
     label: "Learning",
     short: "Learning",
     icon: GraduationCap,
-    description: "Concepts taught step-by-step.",
+    description: "Step-by-step concepts aligned to scoring points.",
   },
   {
     id: "practice",
     label: "Practice",
     short: "Practice",
     icon: BookOpen,
-    description: "Scored against the marking scheme.",
+    description: "Score practice answers against the marking scheme.",
   },
   {
     id: "revision",
     label: "Revision",
     short: "Revision",
     icon: RotateCcw,
-    description: "Concise chapter packs.",
+    description: "Rapid chapter revision with key scoring cues.",
   },
 ];
 
@@ -63,53 +63,9 @@ export const sampleCitation = {
 };
 
 export const starterMessages = [
-  {
-    role: "user",
-    text: "A copper ring is dropped through a magnetic field. Why does it slow down inside?",
-  },
-  {
-    role: "aira",
-    text: [
-      "Great question. Let's reason carefully.",
-      "1. What's changing? As the ring enters, magnetic flux Phi = B.A through it changes, so an EMF is induced.",
-      "2. Lenz's law kicks in. The induced current opposes the change in flux. The force F = IL x B on this current points opposite to the ring's motion. Energy goes to heat.",
-    ],
-  },
 ];
 
 export const savedItems = [
-  {
-    id: "sv-1",
-    subject: "Physics",
-    title: "Now use this to derive the formula for terminal velocity of a falling magnet through a copper pipe",
-    time: "Just now",
-    synced: true,
-    answer:
-      "Terminal velocity is reached when gravitational pull on the magnet is exactly balanced by the retarding magnetic force from eddy currents in the pipe wall.",
-    formula: "mg = (B²L²v)/R  ⇒  v_terminal = mgR/(BL)²",
-    source: "2025 Phy · Set-1 · Q12",
-  },
-  {
-    id: "sv-2",
-    subject: "Math",
-    title: "If y = (sin x)^x, find dy/dx",
-    time: "2h ago",
-    synced: false,
-  },
-  {
-    id: "sv-3",
-    subject: "Physics",
-    title: "Why does work done by magnetic force on a moving charge equal zero?",
-    time: "Yesterday",
-    synced: false,
-  },
-  {
-    id: "sv-4",
-    subject: "Chemistry",
-    title: "Difference between SN1 and SN2 with one example each",
-    time: "Yesterday",
-    synced: false,
-  },
 ];
 
 export const revisionPack = [
@@ -119,17 +75,62 @@ export const revisionPack = [
 ];
 
 export const formulaRows = [
-  ["Faraday", "epsilon = - dPhi / dt"],
-  ["Motional EMF", "epsilon = B · L · v"],
-  ["Self-inductance", "epsilon = - L · dI/dt"],
-  ["Stored energy", "U = 1/2 L I²"],
 ];
 
+export const doubtQuickActions = [
+  "Explain electric field in simple words",
+  "Why is Nernst equation useful?",
+  "Differentiate x² sin x",
+  "What does INNER JOIN do in SQL?",
+  "Write a 50-word school notice",
+];
+
+export const learningQuickActions = [
+  { subject: "physics", topic: "Electrostatics", label: "Learn Electrostatics" },
+  { subject: "chemistry", topic: "Solutions", label: "Learn Solutions" },
+  { subject: "mathematics", topic: "Matrices", label: "Learn Matrices" },
+  { subject: "computer-science", topic: "Python file handling", label: "Learn Python file handling" },
+  { subject: "english", topic: "Notice writing", label: "Learn Notice writing" },
+];
+
+export const practiceQuickActions = [
+  { subject: "physics", label: "Easy Physics question" },
+  { subject: "chemistry", label: "Easy Chemistry question" },
+  { subject: "mathematics", label: "Easy Mathematics question" },
+  { subject: "computer-science", label: "Easy Computer Science question" },
+  { subject: "english", label: "Easy English question" },
+];
+
+export const revisionQuickActions = [
+  { subject: "physics", topic: "Electrostatics", label: "Revise Electrostatics" },
+  { subject: "chemistry", topic: "Chemical Kinetics", label: "Revise Chemical Kinetics" },
+  { subject: "mathematics", topic: "Calculus", label: "Revise Calculus" },
+  { subject: "computer-science", topic: "Computer Networks", label: "Revise Computer Networks" },
+  { subject: "english", topic: "Creative Writing", label: "Revise Creative Writing" },
+];
+
+export const syllabusTopics = {
+  physics: ["Electrostatics", "Current Electricity", "Magnetism", "EMI and AC", "EM Waves", "Optics", "Dual Nature", "Atoms and Nuclei", "Semiconductors"],
+  chemistry: ["Solutions", "Electrochemistry", "Chemical Kinetics", "d- and f-Block Elements", "Coordination Compounds", "Haloalkanes and Haloarenes", "Alcohols Phenols and Ethers", "Aldehydes Ketones and Carboxylic Acids", "Amines", "Biomolecules"],
+  mathematics: ["Relations and Functions", "Algebra", "Calculus", "Vectors and 3D Geometry", "Linear Programming", "Probability"],
+  "computer-science": ["Python functions", "Exception handling", "File handling", "Stacks", "Computer networks", "Database management", "SQL", "Python-SQL connectivity"],
+  english: ["Reading Skills", "Creative Writing", "Literature", "Listening/Speaking", "Project Work"],
+} as const;
+
+export const syllabusReferences = [
+  ["CBSE Curriculum 2025-26", "https://cbseacademic.nic.in/curriculum_2026.html"],
+  ["Physics Class XII syllabus", "https://cbseacademic.nic.in/web_material/CurriculumMain26/SrSec/Physics_SrSec_2025-26.pdf"],
+  ["Chemistry Class XII syllabus", "https://cbseacademic.nic.in/web_material/CurriculumMain26/SrSec/Chemistry_SrSec_2025-26.pdf"],
+  ["Mathematics Class XII syllabus", "https://cbseacademic.nic.in/web_material/CurriculumMain26/SrSec/Maths_SrSec_2025-26.pdf"],
+  ["Computer Science Class XII syllabus", "https://cbseacademic.nic.in/web_material/CurriculumMain26/SrSec/Computer_Science_SrSec_2025-26.pdf"],
+  ["English Core Class XII syllabus", "https://cbseacademic.nic.in/web_material/CurriculumMain26/SrSec/English_core_SrSec_2025-26.pdf"],
+] as const;
+
 export const modeHighlights = [
-  { icon: MessageCircleQuestion, title: "Doubt Solver", text: "Ask anything and get a citation-backed answer." },
-  { icon: GraduationCap, title: "Learning", text: "Move through ideas in paced, checked lessons." },
-  { icon: Sigma, title: "Practice", text: "Write answers and score against marking points." },
-  { icon: Brain, title: "Revision", text: "Collapse a chapter into concepts, formulas, and checks." },
-  { icon: Bookmark, title: "Saved", text: "Local-first saves with delta sync once signed in." },
+  { icon: MessageCircleQuestion, title: "Doubt Solver", text: "Ask board-exam doubts and get source-backed answers." },
+  { icon: GraduationCap, title: "Learning", text: "Learn with exam-ready steps and checkpoint prompts." },
+  { icon: Sigma, title: "Practice", text: "Submit answers and score against marking points." },
+  { icon: Brain, title: "Revision", text: "Revise chapters with formulas, cues, and quick checks." },
+  { icon: Bookmark, title: "Saved", text: "Save strong answers and reopen them before revision." },
   { icon: CheckCircle2, title: "Sources", text: "Every grounded answer keeps its source visible." },
 ];

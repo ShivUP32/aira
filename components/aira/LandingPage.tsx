@@ -16,8 +16,8 @@ export function LandingPage() {
         <div className="nav-actions">
           <a href="#modes">Modes</a>
           <a href="#sources">Sources</a>
-          <Link href="/saved">Saved</Link>
-          <Link href="/chat">Try app</Link>
+          <Link href="/login">Saved</Link>
+          <Link href="/login">Start studying</Link>
           <Link href="/login" className="small-button">Log in</Link>
         </div>
       </nav>
@@ -26,25 +26,26 @@ export function LandingPage() {
         <div className="hero-copy">
           <Chip tone="saffron">Built on 2025 CBSE board papers</Chip>
           <h1>
-            Board-exam answers that show <em>where the marks come from.</em>
+            The Class 12 board exam buddy that <em>helps you score extra marks.</em>
           </h1>
           <p>
             Aira helps Class 12 students solve doubts, practise questions,
-            revise chapters, and learn concepts with visible source citations.
+            and revise Physics, Chemistry, Mathematics, Computer Science, and
+            English Core with visible source citations.
           </p>
           <div className="hero-actions">
             <Link href="/login" className="primary-button">
               Start free <ArrowRight size={18} />
             </Link>
-            <Link href="/chat" className="secondary-button">
-              Explore demo
+            <Link href="/login" className="secondary-button">
+              See how it works
             </Link>
             <InstallButton />
           </div>
-          <div className="hero-subtext">No card · English + हिन्दी · Works as a PWA</div>
+          <div className="hero-subtext">No card · English-only beta</div>
         </div>
 
-        <div className="web-app-preview" aria-label="Aira app preview">
+        <div className="web-app-preview" aria-label="Aira workspace">
           <div className="preview-topbar">
             <div className="brand-lockup small">
               <AiraMark size={24} />
@@ -52,9 +53,9 @@ export function LandingPage() {
             </div>
             <div className="preview-search">
               <Search size={16} />
-              Ask about Physics, Math, Chemistry...
+              Ask about Physics, Chemistry, Mathematics, Computer Science, English Core...
             </div>
-            <Link href="/chat" className="tiny-pill">Open app</Link>
+            <Link href="/login" className="tiny-pill">Start</Link>
           </div>
           <div className="preview-grid">
             <aside className="preview-sidebar">
@@ -69,7 +70,7 @@ export function LandingPage() {
                 );
               })}
               <div className="section-kicker">Subjects</div>
-              {subjects.slice(0, 4).map((subject) => (
+              {subjects.map((subject) => (
                 <div className="preview-nav-item" key={subject.id}>
                   <span style={{ color: subject.color }}>■</span>
                   <span>{subject.label}</span>
@@ -94,7 +95,7 @@ export function LandingPage() {
                   <Chip tone="success"><CheckCircle2 size={14} /> Marking scheme</Chip>
                 </div>
               </article>
-              <Link href="/chat" className="preview-input">
+              <Link href="/login" className="preview-input">
                 <span>Ask a doubt or paste a board question...</span>
                 <span className="preview-send"><Send size={16} /></span>
               </Link>
@@ -107,13 +108,13 @@ export function LandingPage() {
         <div className="section-heading">
           <div className="section-kicker">Study modes</div>
           <h2>One product, four ways to study.</h2>
-          <p>Each mode changes the workspace instead of forcing every task into a chat bubble.</p>
+          <p>Each mode supports a real board-prep job: doubts, learning, practice, and revision.</p>
         </div>
         <div className="feature-grid large">
           {modeHighlights.map((item) => {
             const Icon = item.icon;
             return (
-              <Link href="/chat" className="feature-card" key={item.title}>
+              <Link href="/login" className="feature-card" key={item.title}>
                 <Icon size={20} />
                 <strong>{item.title}</strong>
                 <span>{item.text}</span>
@@ -147,10 +148,10 @@ export function LandingPage() {
       <section className="website-section cta-section">
         <Bookmark size={24} />
         <h2>Start studying with sources attached.</h2>
-        <p>Aira is built for Supabase auth, OpenRouter answers, RAG retrieval, and local-first saved answers.</p>
+        <p>Built for Class 12 board prep with source-backed answers and marking-scheme clarity.</p>
         <div className="hero-actions">
-          <Link href="/chat" className="primary-button">Open Aira</Link>
-          <Link href="/onboarding" className="secondary-button">Set up subjects</Link>
+          <Link href="/login" className="primary-button">Start studying</Link>
+          <Link href="/login" className="secondary-button">Set up subjects</Link>
         </div>
       </section>
     </main>

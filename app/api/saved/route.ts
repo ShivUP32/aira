@@ -1,9 +1,11 @@
 import {
+  canUseLocalFallback,
   cleanString,
   getAuthedSupabase,
   isUuid,
   jsonOk,
   numericDocumentId,
+  productionAuthError,
   readBody,
 } from "@/lib/aira/api";
 
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
     if (supabase && user) {
       let query = supabase
         .from("bookmarks")
-        .select("id,document_id,message_id,created_at,documents(content,metadata)")
+        .select("id,document_id,message_id,note,created_at,documents(content,metadata)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (since && !Number.isNaN(Number(since))) {
@@ -27,6 +29,7 @@ export async function GET(request: Request) {
         return jsonOk({
           items: (data || []).map((item) => ({
             id: item.id,
+            serverId: item.id,
             subject: savedSubject(item),
             title: savedTitle(item),
             time: "Synced",
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
     console.error("Saved sync fetch failed", error);
   }
 
+  if (!canUseLocalFallback()) return productionAuthError("Authentication is not configured.");
   return jsonOk({ items: [], deletedIds: [], source: "local" });
 }
 
@@ -86,8 +90,10 @@ export async function POST(request: Request) {
   const body = await readBody(request);
   const documentId = numericDocumentId(body.document_id);
   const messageId = isUuid(body.message_id) ? String(body.message_id) : null;
+  const note = cleanString(body.note) || null;
+  const localId = cleanString(body.id) || `local-${Date.now()}`;
   const fallback = {
-    id: cleanString(body.id) || `local-${Date.now()}`,
+    id: localId,
     ...body,
     synced: false,
     ts: Date.now(),
@@ -99,12 +105,24 @@ export async function POST(request: Request) {
       if (supabase && user) {
         const { data, error } = await supabase
           .from("bookmarks")
-          .insert({ user_id: user.id, document_id: documentId, message_id: messageId })
-          .select("id,document_id,message_id,created_at")
+          .insert({ user_id: user.id, document_id: documentId, message_id: messageId, note })
+          .select("id,document_id,message_id,note,created_at")
           .single();
         if (!error && data) {
           return jsonOk({
-            item: { ...data, synced: true, ts: new Date(data.created_at).getTime() },
+            item: {
+              id: localId,
+              serverId: data.id,
+              subject: cleanString(body.subject, "Physics"),
+              title: cleanString(body.title, `Saved source ${documentId || ""}`),
+              time: "Synced",
+              answer: cleanString(body.answer),
+              formula: cleanString(body.formula) || undefined,
+              source: cleanString(body.source, savedSource({ document_id: documentId }) || ""),
+              citationId: data.document_id ? String(data.document_id) : cleanString(body.citationId) || undefined,
+              synced: true,
+              ts: new Date(data.created_at).getTime(),
+            },
             source: "supabase",
           }, { status: 201 });
         }
@@ -114,5 +132,6 @@ export async function POST(request: Request) {
     }
   }
 
+  if (!canUseLocalFallback()) return productionAuthError("Saved item persistence is not configured.");
   return jsonOk({ item: fallback, source: "local" }, { status: 201 });
 }

@@ -1,4 +1,4 @@
-import { getAuthedSupabase, isUuid, jsonOk } from "@/lib/aira/api";
+import { canUseLocalFallback, getAuthedSupabase, isUuid, jsonError, jsonOk, productionAuthError } from "@/lib/aira/api";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +25,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       console.error("Conversation detail failed", error);
     }
   }
+  if (!canUseLocalFallback()) {
+    return isUuid(id)
+      ? productionAuthError("Authentication is not configured.")
+      : jsonError("Invalid conversation id.", 400);
+  }
   return jsonOk({ conversation: { id, title: "Local conversation", mode: "doubt" }, messages: [], source: "local" });
 }
 
@@ -40,7 +45,13 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       }
     } catch (error) {
       console.error("Conversation delete failed", error);
+      if (!canUseLocalFallback()) return jsonError("Conversation delete failed.", 503);
     }
+  }
+  if (!canUseLocalFallback() && source !== "supabase") {
+    return isUuid(id)
+      ? productionAuthError("Authentication is not configured.")
+      : jsonError("Invalid conversation id.", 400);
   }
   return jsonOk({ success: true, source });
 }

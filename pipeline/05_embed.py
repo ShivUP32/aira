@@ -9,6 +9,7 @@ Usage:
 
 import json
 import sys
+import argparse
 from pathlib import Path
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
@@ -24,12 +25,14 @@ def make_chunk_content(q: dict) -> str:
     parts = [f"Question: {q['question']}"]
     if q.get("solution"):
         parts.append(f"\nSolution: {q['solution']}")
+    if q.get("topic"):
+        parts.append(f"\n[Topic: {q['topic']}]")
     if q.get("chapter"):
         parts.append(f"\n[Chapter: {q['chapter']}]")
     return "\n".join(parts)
 
 
-def main() -> None:
+def main(language: str = "en", require_solution: bool = True) -> None:
     print(f"Loading embedding model: {EMBEDDING_MODEL}")
     model = SentenceTransformer(EMBEDDING_MODEL)
     print(f"  ✓ Model loaded (dim={model.get_sentence_embedding_dimension()})")
@@ -44,6 +47,12 @@ def main() -> None:
         subject = json_path.stem.replace("_2025", "")
         with open(json_path, encoding="utf-8") as f:
             questions = json.load(f)
+
+        if language:
+            questions = [q for q in questions if q.get("language", "en") == language]
+
+        if require_solution:
+            questions = [q for q in questions if q.get("solution")]
 
         no_solution = sum(1 for q in questions if not q.get("solution"))
         if no_solution:
@@ -60,16 +69,22 @@ def main() -> None:
                     "subject": q["subject"],
                     "year": q["year"],
                     "set": q["set"],
-                    "set_label": q.get("set", "Set-1"),
+                    "set_label": q.get("set", "unknown"),
                     "section": q.get("section", ""),
                     "q_no": q["q_no"],
                     "marks": q["marks"],
                     "type": q["type"],
                     "chapter": q.get("chapter", ""),
+                    "topic": q.get("topic") or q.get("chapter", ""),
                     "language": q.get("language", "en"),
                     "or_group": q.get("or_group"),
+                    "or_variant": q.get("or_variant", 0),
                     "has_diagram": q.get("has_diagram", False),
                     "solution_source": q.get("solution_source", "unknown"),
+                    "source_pdf": q.get("source_pdf", ""),
+                    "solution_pdf": q.get("solution_pdf", ""),
+                    "question": q.get("question", ""),
+                    "solution": q.get("solution", ""),
                 },
                 "embedding": emb.tolist(),
             }
@@ -85,4 +100,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--language", default="en", help="Only embed this language. Use empty string for all.")
+    parser.add_argument("--allow-missing-solutions", action="store_true")
+    args = parser.parse_args()
+    main(language=args.language, require_solution=not args.allow_missing_solutions)

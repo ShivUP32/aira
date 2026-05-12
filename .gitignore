@@ -33,9 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+.env.local
 
 # data directory (local knowledge base files)
 /data/
+/pipeline/.venv/
 
 # vercel
 .vercel

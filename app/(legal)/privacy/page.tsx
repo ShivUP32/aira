@@ -38,7 +38,7 @@ export default function PrivacyPage() {
           },
           {
             title: '5. Third-Party Services',
-            body: `Aira uses OpenRouter to process AI requests, Hugging Face for embeddings, and Upstash for rate limiting. Your messages may be processed by these services to generate responses. Please review their privacy policies.`,
+            body: `Aira uses Groq to process AI requests, Hugging Face for embeddings, and Upstash for rate limiting. Your messages may be processed by these services to generate responses. Please review their privacy policies.`,
           },
           {
             title: '6. Data Retention',

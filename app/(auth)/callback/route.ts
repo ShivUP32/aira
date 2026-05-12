@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { hasSupabaseEnv } from "@/lib/aira/env";
+import { allowDemoAuth, hasSupabaseEnv } from "@/lib/aira/env";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -28,6 +28,10 @@ export async function GET(request: Request) {
     );
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) return response;
+  }
+
+  if (!allowDemoAuth()) {
+    return NextResponse.redirect(new URL("/login?error=auth_failed", url.origin));
   }
 
   const response = NextResponse.redirect(new URL("/onboarding?demo=1", url.origin));
